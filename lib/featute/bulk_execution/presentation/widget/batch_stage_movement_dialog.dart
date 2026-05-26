@@ -27,23 +27,43 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
   late TextEditingController remarksController;
   String movementType = "Complete"; // "Complete" or "Transfer"
   int? targetStageId;
+  int? sourceStageId;
 
   @override
   void initState() {
     super.initState();
-    qtyController = TextEditingController(text: (widget.component.totalNeeded ?? 0).toString());
-    remarksController = TextEditingController();
     
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
+    final activeStagesWithQty = stages.where((s) => (s.reserved ?? 0) > 0).toList();
     final currentId = c.currentStageId ?? 0;
+    final hasCurrentQty = activeStagesWithQty.any((s) => s.stageId == currentId);
+
+    sourceStageId = hasCurrentQty 
+        ? currentId 
+        : (activeStagesWithQty.isNotEmpty ? activeStagesWithQty.first.stageId : currentId);
+
     final isCompleted = c.jobStatus == "completed";
 
+    final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    final defaultQty = sourceStageId == 0 
+        ? (c.totalNeeded ?? 0) 
+        : (sourceStage?.reserved ?? 0);
+
+    qtyController = TextEditingController(text: defaultQty.toString());
+    remarksController = TextEditingController();
+
+    // Check if any stage after sourceStageId has reserved > 0
+    bool hasTransferredToNext = false;
+    if (sourceStageId! > 0) {
+      hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
+    }
+
     // 1. Determine movementType
-    if (currentId == 0) {
+    if (sourceStageId == 0) {
       movementType = "Complete";
     } else {
-      if (isCompleted) {
+      if (isCompleted || hasTransferredToNext) {
         movementType = "Transfer";
       } else {
         movementType = "Complete";
@@ -51,17 +71,17 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
     }
 
     // 2. Determine targetStageId
-    if (currentId == 0) {
+    if (sourceStageId == 0) {
       final hasStage1 = stages.any((s) => s.stageId == 1);
       targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
     } else {
-      if (isCompleted) {
-        final nextStageId = currentId + 1;
+      if (isCompleted || hasTransferredToNext) {
+        final nextStageId = sourceStageId! + 1;
         final hasNextStage = stages.any((s) => s.stageId == nextStageId);
         targetStageId = hasNextStage ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
       } else {
-        final hasCurrent = stages.any((s) => s.stageId == currentId);
-        targetStageId = hasCurrent ? currentId : (stages.isNotEmpty ? stages.first.stageId : null);
+        final hasCurrent = stages.any((s) => s.stageId == sourceStageId);
+        targetStageId = hasCurrent ? sourceStageId : (stages.isNotEmpty ? stages.first.stageId : null);
       }
     }
   }
@@ -86,6 +106,21 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
       return;
     }
 
+    final c = widget.component;
+    final stages = c.pipelineStages ?? [];
+    final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    final maxAvailable = sourceStageId == 0 
+        ? (c.totalNeeded ?? 0) 
+        : (currentStage?.reserved ?? 0);
+
+    if (qty > maxAvailable) {
+      FunctionalWidget.showSnackBar(
+        title: "Quantity cannot exceed available units ($maxAvailable)",
+        success: false,
+      );
+      return;
+    }
+
     final remarks = remarksController.text.trim();
 
     Get.back(); // Close dialog
@@ -103,7 +138,11 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
   Widget build(BuildContext context) {
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
-    final currentId = c.currentStageId ?? 0;
+    
+    final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    final maxAvailable = sourceStageId == 0 
+        ? (c.totalNeeded ?? 0) 
+        : (currentStage?.reserved ?? 0);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -255,7 +294,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                   style: const TextStyle(fontFamily: "Outfit", color: AppColors.black, fontSize: FontSizes.small),
                                   children: [
                                     TextSpan(
-                                      text: "${c.totalNeeded ?? 0} ",
+                                      text: "$maxAvailable ",
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     const TextSpan(
@@ -266,7 +305,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                 ),
                               ),
                               TextWidget(
-                                text: "To complete: ${c.totalNeeded ?? 0}",
+                                text: "To complete: $maxAvailable",
                                 fontSize: FontSizes.tiny,
                                 fontWeight: FontWeights.bold,
                                 clr: AppColors.orange,
@@ -287,6 +326,68 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Source Stage Dropdown
+              if (sourceStageId != null && sourceStageId != 0) ...[
+                const TextWidget(
+                  text: "Source Stage",
+                  fontSize: FontSizes.small,
+                  fontWeight: FontWeights.bold,
+                  clr: AppColors.black,
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<int>(
+                  value: sourceStageId,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: AppColors.borderClr),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: AppColors.blue),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  dropdownColor: AppColors.white,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        sourceStageId = val;
+                        
+                        final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+                        final defaultQty = sourceStageId == 0 
+                            ? (c.totalNeeded ?? 0) 
+                            : (sourceStage?.reserved ?? 0);
+                            
+                        qtyController.text = defaultQty.toString();
+                        
+                        bool hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
+                        final isCompleted = c.jobStatus == "completed";
+
+                        if (isCompleted || hasTransferredToNext) {
+                          movementType = "Transfer";
+                          final nextStageId = sourceStageId! + 1;
+                          final hasNextStage = stages.any((s) => s.stageId == nextStageId);
+                          targetStageId = hasNextStage ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
+                        } else {
+                          movementType = "Complete";
+                          targetStageId = sourceStageId;
+                        }
+                      });
+                    }
+                  },
+                  items: stages
+                      .where((s) => s.stageId != null && s.stageId != 0 && (s.reserved ?? 0) > 0)
+                      .map((stage) {
+                        return DropdownMenuItem<int>(
+                          value: stage.stageId!,
+                          child: TextWidget(text: "${stage.stageId}. ${stage.stageName} (${stage.reserved} available)"),
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Target Stage Dropdown
               const TextWidget(

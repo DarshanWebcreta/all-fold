@@ -1,0 +1,54 @@
+class Permissions {
+  Permissions._(); // Private constructor to prevent instantiation
+
+  static const String viewOrders = "view_orders";
+  static const String cancelOrders = "cancel_orders";
+  static const String importOrders = "import_orders";
+  static const String allowProcessPicklist = "allow_process_picklist";
+  static const String viewPicklist = "view_picklist";
+  static const String closePicklists = "close_picklists";
+  static const String addPicklistsNote = "add_picklists_note";
+  static const String manageProductsMarking = "manage_products_marking";
+  static const String manageAllProductsMarking = "manage_all_products_marking";
+  static const String viewPurchases = "view_purchases";
+  static const String createPurchases = "create_purchases";
+  static const String editPurchases = "edit_purchases";
+  static const String managePurchasesMarking = "manage_purchases_marking";
+  static const String manageAllPurchasesMarking = "manage_all_purchases_marking";
+  static const String viewProducts = "view_products";
+  static const String editProducts = "edit_products";
+  static const String importProducts = "import_products";
+  static const String manageBarcodes = "manage_barcodes";
+  static const String manageInventory = "manage_inventory";
+  static const String manageStock = "manage_stock";
+  static const String manageStockHistory = "manage_stock_history";
+  static const String viewProductPrice = "view_product_price";
+  static const String viewCustomers = "view_customers";
+  static const String editCustomers = "edit_customers";
+  static const String importCustomer = "import_customer";
+  static const String managePicklistAdvancedActions = "manage_picklist_advanced_actions";
+  static const String createCustomerAddress = "create_customer_address";
+  static const String editCustomerAddress = "edit_customer_address";
+  static const String deleteCustomerAddress = "delete_customer_address";
+  static const String viewWarehouse = "view_warehouse";
+  static const String createWarehouse = "create_warehouse";
+  static const String editWarehouse = "edit_warehouse";
+  static const String viewWarehouseStockDetails = "view_warehouse_stock_details";
+  static const String viewBrand = "view_brand";
+  static const String createBrand = "create_brand";
+  static const String editBrand = "edit_brand";
+  static const String viewBrandStockDetails = "view_brand_stock_details";
+  static const String viewSupplier = "view_supplier";
+  static const String createSupplier = "create_supplier";
+  static const String editSupplier = "edit_supplier";
+  static const String viewSupplierStockDetails = "view_supplier_stock_details";
+  static const String viewLocation = "view_location";
+  static const String createLocations = "create_locations";
+  static const String editLocations = "edit_locations";
+  static const String deleteLocations = "delete_locations";
+  static const String createLocationWizards = "create_location_wizards";
+  static const String linkLocation = "link_location";
+  static const String importLocations = "import_locations";
+  static const String viewLocationStockDetails = "view_location_stock_details";
+  static const String viewReports = "view_reports";
+}

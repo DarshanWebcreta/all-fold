@@ -46,21 +46,22 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
     final isCompleted = c.jobStatus == "completed";
 
     final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-    final defaultQty = sourceStageId == 0 
-        ? (c.totalNeeded ?? 0) 
-        : (sourceStage?.reserved ?? 0);
+    final hasReservedQty = activeStagesWithQty.isNotEmpty;
+    final defaultQty = !hasReservedQty 
+        ? (c.totalNeeded ?? 0).toDouble() 
+        : (sourceStage?.reserved ?? 0.0);
 
     qtyController = TextEditingController(text: defaultQty.toString());
     remarksController = TextEditingController();
 
     // Check if any stage after sourceStageId has reserved > 0
     bool hasTransferredToNext = false;
-    if (sourceStageId! > 0) {
+    if (sourceStageId != null && sourceStageId! > 0) {
       hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
     }
 
     // 1. Determine movementType
-    if (sourceStageId == 0) {
+    if (!hasReservedQty) {
       movementType = "Complete";
     } else {
       if (isCompleted || hasTransferredToNext) {
@@ -71,7 +72,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
     }
 
     // 2. Determine targetStageId
-    if (sourceStageId == 0) {
+    if (!hasReservedQty) {
       final hasStage1 = stages.any((s) => s.stageId == 1);
       targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
     } else {
@@ -108,10 +109,11 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
 
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
+    final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
     final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-    final maxAvailable = sourceStageId == 0 
-        ? (c.totalNeeded ?? 0) 
-        : (currentStage?.reserved ?? 0);
+    final maxAvailable = !hasReservedQty 
+        ? (c.totalNeeded ?? 0).toDouble() 
+        : (currentStage?.reserved ?? 0.0);
 
     if (qty > maxAvailable) {
       FunctionalWidget.showSnackBar(
@@ -139,10 +141,11 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
     
+    final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
     final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-    final maxAvailable = sourceStageId == 0 
-        ? (c.totalNeeded ?? 0) 
-        : (currentStage?.reserved ?? 0);
+    final maxAvailable = !hasReservedQty 
+        ? (c.totalNeeded ?? 0).toDouble() 
+        : (currentStage?.reserved ?? 0.0);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -437,7 +440,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                               setState(() {
                                 movementType = val;
                                 if (movementType == "Complete") {
-                                  if (sourceStageId == 0) {
+                                  if (!hasReservedQty) {
                                     final hasStage1 = stages.any((s) => s.stageId == 1);
                                     targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
                                   } else {
@@ -445,7 +448,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                     targetStageId = hasCurrent ? sourceStageId : (stages.isNotEmpty ? stages.first.stageId : null);
                                   }
                                 } else {
-                                  final nextStageId = sourceStageId == 0 ? 2 : (sourceStageId! + 1);
+                                  final nextStageId = !hasReservedQty ? 2 : (sourceStageId! + 1);
                                   final hasNext = stages.any((s) => s.stageId == nextStageId);
                                   targetStageId = hasNext ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
                                 }

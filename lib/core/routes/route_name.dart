@@ -15,4 +15,5 @@ class RoutesNames {
   static const bulkDashboard = '/bulk-dashboard';
   static const createBatch = '/create-batch';
   static const batchDetail = '/batch-detail';
+  static const profile = '/profile';
 }

@@ -5,6 +5,8 @@ import 'package:all_fold/featute/bulk_execution/presentation/bulk_execution_dash
 import 'package:all_fold/featute/bulk_execution/presentation/create_batch_screen.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/batch_detail_screen.dart';
 
+import 'package:all_fold/featute/auth/presentation/profile_screen.dart';
+
 abstract class AppPages {
   static final pages = [
     GetPage(
@@ -22,6 +24,10 @@ abstract class AppPages {
     GetPage(
       name: RoutesNames.batchDetail,
       page: () => const BatchDetailScreen(),
+    ),
+    GetPage(
+      name: RoutesNames.profile,
+      page: () => const ProfileScreen(),
     ),
   ];
 }

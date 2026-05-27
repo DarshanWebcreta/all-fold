@@ -327,67 +327,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
               ),
               const SizedBox(height: 20),
 
-              // Source Stage Dropdown
-              if (sourceStageId != null && sourceStageId != 0) ...[
-                const TextWidget(
-                  text: "Source Stage",
-                  fontSize: FontSizes.small,
-                  fontWeight: FontWeights.bold,
-                  clr: AppColors.black,
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<int>(
-                  value: sourceStageId,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: AppColors.borderClr),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: AppColors.blue),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  dropdownColor: AppColors.white,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        sourceStageId = val;
-                        
-                        final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-                        final defaultQty = sourceStageId == 0 
-                            ? (c.totalNeeded ?? 0) 
-                            : (sourceStage?.reserved ?? 0);
-                            
-                        qtyController.text = defaultQty.toString();
-                        
-                        bool hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
-                        final isCompleted = c.jobStatus == "completed";
 
-                        if (isCompleted || hasTransferredToNext) {
-                          movementType = "Transfer";
-                          final nextStageId = sourceStageId! + 1;
-                          final hasNextStage = stages.any((s) => s.stageId == nextStageId);
-                          targetStageId = hasNextStage ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
-                        } else {
-                          movementType = "Complete";
-                          targetStageId = sourceStageId;
-                        }
-                      });
-                    }
-                  },
-                  items: stages
-                      .where((s) => s.stageId != null && s.stageId != 0 && (s.reserved ?? 0) > 0)
-                      .map((stage) {
-                        return DropdownMenuItem<int>(
-                          value: stage.stageId!,
-                          child: TextWidget(text: "${stage.stageId}. ${stage.stageName} (${stage.reserved} available)"),
-                        );
-                      }).toList(),
-                ),
-                const SizedBox(height: 16),
-              ],
 
               // Target Stage Dropdown
               const TextWidget(
@@ -497,15 +437,15 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                               setState(() {
                                 movementType = val;
                                 if (movementType == "Complete") {
-                                  if (currentId == 0) {
+                                  if (sourceStageId == 0) {
                                     final hasStage1 = stages.any((s) => s.stageId == 1);
                                     targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
                                   } else {
-                                    final hasCurrent = stages.any((s) => s.stageId == currentId);
-                                    targetStageId = hasCurrent ? currentId : (stages.isNotEmpty ? stages.first.stageId : null);
+                                    final hasCurrent = stages.any((s) => s.stageId == sourceStageId);
+                                    targetStageId = hasCurrent ? sourceStageId : (stages.isNotEmpty ? stages.first.stageId : null);
                                   }
                                 } else {
-                                  final nextStageId = currentId == 0 ? 2 : (currentId + 1);
+                                  final nextStageId = sourceStageId == 0 ? 2 : (sourceStageId! + 1);
                                   final hasNext = stages.any((s) => s.stageId == nextStageId);
                                   targetStageId = hasNext ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
                                 }

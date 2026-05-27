@@ -24,6 +24,7 @@ class BulkExecutionController extends GetxController {
   final activeApiBatches = <ApiBatch>[].obs;
   final isLoadingBatches = false.obs;
   final batchesError = "".obs;
+  final preparedBatches = <int>{}.obs;
 
   // Form State
   final selectedProduct = Rxn<ProductData>();
@@ -198,6 +199,25 @@ class BulkExecutionController extends GetxController {
     );
 
     batches.insert(0, newBatch);
+    batches.refresh();
+
+    // Add to activeApiBatches as well so it's shown in the main batches list
+    final newApiBatch = ApiBatch(
+      batchId: 100 + activeApiBatches.length + 1,
+      batchNo: "BAT-SIM-${100 + activeApiBatches.length + 1}",
+      batchName: "Plan: ${product.title}",
+      productId: product.id,
+      productName: product.title,
+      sku: product.sku,
+      plannedQty: targetQty,
+      status: "planned",
+      isActionableForCurrentUser: true,
+      components: [],
+    );
+
+    activeApiBatches.insert(0, newApiBatch);
+    activeApiBatches.refresh();
+
     resetForm();
     Get.back();
     FunctionalWidget.showSnackBar(title: "Production Batch planned successfully.", success: true);
@@ -415,6 +435,7 @@ class BulkExecutionController extends GetxController {
     required String batchName,
   }) async {
     FunctionalWidget.loaderHideShow(loaderShow: true);
+    bool isSuccess = false;
     try {
       final apiService = getIt<ApiService>();
       await apiService.planBatch({
@@ -422,14 +443,29 @@ class BulkExecutionController extends GetxController {
         "qty": quantity.toDouble(),
         "batch_name": batchName,
       });
+      isSuccess = true;
       FunctionalWidget.showSnackBar(
         title: "Production Batch planned successfully on Server.",
         success: true,
       );
+      await fetchActiveBatches();
     } catch (e) {
       debugPrint("API Error planning batch, falling back to simulated local creation: $e");
     } finally {
-      _createSimulatedBatchFromUnplanned(product, quantity, batchName);
+      if (!isSuccess) {
+        _createSimulatedBatchFromUnplanned(product, quantity, batchName);
+      } else {
+        // Also update pending qty locally since API call succeeded
+        final idx = unplannedProducts.indexWhere((p) => p.productId == product.productId);
+        if (idx != -1) {
+          final p = unplannedProducts[idx];
+          final currentPending = p.pendingQty ?? 0;
+          final newPending = currentPending - quantity;
+          p.pendingQty = newPending > 0 ? newPending : 0;
+          unplannedProducts[idx] = p;
+          unplannedProducts.refresh();
+        }
+      }
       FunctionalWidget.loaderHideShow(loaderShow: false);
     }
   }
@@ -477,6 +513,46 @@ class BulkExecutionController extends GetxController {
     batches.insert(0, newBatch);
     batches.refresh();
 
+    // Create and insert an ApiBatch so it shows up in the Batches tab list
+    final apiCompList = <ApiComponent>[];
+    if (product.components != null) {
+      for (var comp in product.components!) {
+        apiCompList.add(
+          ApiComponent(
+            componentId: comp.id,
+            componentName: comp.name,
+            qtyPerPc: comp.qtyPerPc,
+            totalNeeded: (comp.qtyPerPc ?? 1) * quantity,
+            currentStageId: 1,
+            currentStageLabel: "PLANT-1 SUPERVISOR",
+            isActionableForCurrentUser: true,
+            jobStatus: "pending",
+            pipelineStages: [
+              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: (comp.stageStock?["1"] ?? 0.0).toDouble(), reserved: ((comp.qtyPerPc ?? 1) * quantity).toDouble()),
+              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: (comp.stageStock?["2"] ?? 0.0).toDouble(), reserved: 0.0),
+              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: (comp.stageStock?["3"] ?? 0.0).toDouble(), reserved: 0.0),
+            ],
+          ),
+        );
+      }
+    }
+
+    final newApiBatch = ApiBatch(
+      batchId: 100 + activeApiBatches.length + 1,
+      batchNo: "BAT-SIM-${100 + activeApiBatches.length + 1}",
+      batchName: batchName,
+      productId: product.productId,
+      productName: product.productName,
+      sku: product.sku,
+      plannedQty: quantity,
+      status: "planned",
+      isActionableForCurrentUser: true,
+      components: apiCompList,
+    );
+
+    activeApiBatches.insert(0, newApiBatch);
+    activeApiBatches.refresh();
+
     final idx = unplannedProducts.indexWhere((p) => p.productId == product.productId);
     if (idx != -1) {
       final p = unplannedProducts[idx];
@@ -506,8 +582,16 @@ class BulkExecutionController extends GetxController {
         batchesError.value = response.message ?? "Failed to fetch active batches";
       }
     } catch (e) {
-      debugPrint("API Error fetching active batches, using mock fallback: $e");
-      _loadMockActiveBatches();
+      debugPrint("API Error fetching active batches: $e");
+      if (e is DioException) {
+        if (e.response != null && e.response!.data is Map && e.response!.data['message'] != null) {
+          batchesError.value = e.response!.data['message'];
+        } else {
+          batchesError.value = e.message ?? "Failed to fetch active batches (Network Error)";
+        }
+      } else {
+        batchesError.value = e.toString();
+      }
     } finally {
       isLoadingBatches.value = false;
     }
@@ -536,9 +620,9 @@ class BulkExecutionController extends GetxController {
             isActionableForCurrentUser: true,
             jobStatus: "pending",
             pipelineStages: [
-              PipelineStage(stageId: 1, stageName: "Stage 1 Raw Prep", stock: 400, reserved: 0),
-              PipelineStage(stageId: 2, stageName: "Stage 2 Welding & WIP", stock: 150, reserved: 100),
-              PipelineStage(stageId: 3, stageName: "Stage 3 Assembly & Finished", stock: 0, reserved: 0),
+              PipelineStage(stageId: 1, stageName: "Stage 1 Raw Prep", stock: 400.0, reserved: 0.0),
+              PipelineStage(stageId: 2, stageName: "Stage 2 Welding & WIP", stock: 150.0, reserved: 100.0),
+              PipelineStage(stageId: 3, stageName: "Stage 3 Assembly & Finished", stock: 0.0, reserved: 0.0),
             ],
           ),
         ],
@@ -564,9 +648,9 @@ class BulkExecutionController extends GetxController {
             isActionableForCurrentUser: true,
             jobStatus: "pending",
             pipelineStages: [
-              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: 100, reserved: 100),
-              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: 0, reserved: 0),
-              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: 0, reserved: 0),
+              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: 100.0, reserved: 100.0),
+              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: 0.0, reserved: 0.0),
+              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: 0.0, reserved: 0.0),
             ],
           ),
         ],
@@ -665,9 +749,9 @@ class BulkExecutionController extends GetxController {
 
         if (currentStage != null && targetStage != null) {
           int moveQty = quantity.toInt();
-          currentStage.stock = (currentStage.stock ?? 0) - moveQty;
-          if (currentStage.stock! < 0) currentStage.stock = 0;
-          targetStage.stock = (targetStage.stock ?? 0) + moveQty;
+          currentStage.stock = (currentStage.stock ?? 0.0) - moveQty;
+          if (currentStage.stock! < 0.0) currentStage.stock = 0.0;
+          targetStage.stock = (targetStage.stock ?? 0.0) + moveQty;
         }
       }
 
@@ -679,6 +763,57 @@ class BulkExecutionController extends GetxController {
 
     activeApiBatches[batchIndex] = batch;
     activeApiBatches.refresh();
+  }
+
+  Future<void> prepareBatch(int batchId) async {
+    FunctionalWidget.loaderHideShow(loaderShow: true);
+    try {
+      final apiService = getIt<ApiService>();
+      final response = await apiService.prepareBatch({
+        "batch_id": batchId,
+      });
+      
+      if (response is Map) {
+        final bool isSuccess = response['success'] ?? true;
+        final String msg = response['message'] ?? "Batch prepared successfully.";
+        FunctionalWidget.showSnackBar(title: msg, success: isSuccess);
+        if (isSuccess) {
+          preparedBatches.add(batchId);
+          await fetchActiveBatches();
+        }
+      } else {
+        FunctionalWidget.showSnackBar(
+          title: "Batch prepared successfully.",
+          success: true,
+        );
+        preparedBatches.add(batchId);
+        await fetchActiveBatches();
+      }
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        final res = e.response!;
+        String errorMsg = "Access denied: failed to prepare batch.";
+        if (res.data is Map && res.data['message'] != null) {
+          errorMsg = res.data['message'];
+        } else if (res.statusMessage != null) {
+          errorMsg = res.statusMessage!;
+        }
+        FunctionalWidget.showSnackBar(title: errorMsg, success: false);
+      } else {
+        debugPrint("API Network Error preparing batch, simulating locally: $e");
+        _simulatePrepareBatchLocally(batchId);
+      }
+    } finally {
+      FunctionalWidget.loaderHideShow(loaderShow: false);
+    }
+  }
+
+  void _simulatePrepareBatchLocally(int batchId) {
+    preparedBatches.add(batchId);
+    FunctionalWidget.showSnackBar(
+      title: "Batch prepared. You can now confirm final assembly. (Simulated)",
+      success: true,
+    );
   }
 
   Future<void> assembleBatch(int batchId) async {
@@ -694,6 +829,7 @@ class BulkExecutionController extends GetxController {
         final String msg = response['message'] ?? "Batch assembled successfully.";
         FunctionalWidget.showSnackBar(title: msg, success: isSuccess);
         if (isSuccess) {
+          preparedBatches.remove(batchId);
           await fetchActiveBatches();
         }
       } else {
@@ -701,6 +837,7 @@ class BulkExecutionController extends GetxController {
           title: "Batch assembled successfully.",
           success: true,
         );
+        preparedBatches.remove(batchId);
         await fetchActiveBatches();
       }
     } catch (e) {
@@ -728,6 +865,8 @@ class BulkExecutionController extends GetxController {
 
     final batch = activeApiBatches[batchIndex];
     batch.status = "completed";
+
+    preparedBatches.remove(batchId);
 
     FunctionalWidget.showSnackBar(
       title: "Batch assembled and finished stock updated successfully. (Simulated)",

@@ -36,7 +36,7 @@ class BulkExecutionDashboard extends StatelessWidget {
                 decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
                 child: const Icon(Icons.token, color: AppColors.white, size: 18),
               ),
-              const TextWidget(text: "ALLFOLD Console", fontSize: FontSizes.large, fontWeight: FontWeights.bold, clr: AppColors.orange),
+              const TextWidget(text: "ALLFOLD", fontSize: FontSizes.large, fontWeight: FontWeights.bold, clr: AppColors.orange),
             ],
           ),
           actions: [
@@ -46,11 +46,92 @@ class BulkExecutionDashboard extends StatelessWidget {
               return Row(
                 spacing: 8,
                 children: [
-                  FunctionalWidget.nickName(name: user.name ?? "User", size: 16, font: FontSizes.small),
+                  GestureDetector(
+                    onTap: () => Get.toNamed(RoutesNames.profile),
+                    child: FunctionalWidget.nickName(name: user.name ?? "User", size: 16, font: FontSizes.small),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.logout_outlined, color: AppColors.red),
                     tooltip: "Disconnect Terminal",
-                    onPressed: () => authController.logout(),
+                    onPressed: () {
+                      Get.dialog(
+                        Dialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          backgroundColor: AppColors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Center(
+                                  child: TextWidget(
+                                    text: "Confirm Logout",
+                                    fontSize: FontSizes.extraLarge,
+                                    fontWeight: FontWeights.bold,
+                                    clr: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Center(
+                                  child: TextWidget(
+                                    text: "Do you really want to logout?",
+                                    fontSize: FontSizes.mediuam,
+                                    clr: AppColors.grey,
+                                    maxLine: 2,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor: AppColors.lightGrey,
+                                          foregroundColor: AppColors.black,
+                                          side: BorderSide.none,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => Get.back(),
+                                        child: const TextWidget(
+                                          text: "Cancel",
+                                          fontWeight: FontWeights.medium,
+                                          fontSize: FontSizes.small,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.red,
+                                          foregroundColor: AppColors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          elevation: 0,
+                                        ),
+                                        onPressed: () {
+                                          Get.back();
+                                          authController.logout();
+                                        },
+                                        child: const TextWidget(
+                                          text: "Logout",
+                                          fontWeight: FontWeights.bold,
+                                          fontSize: FontSizes.small,
+                                          clr: AppColors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               );
@@ -83,15 +164,7 @@ class BulkExecutionDashboard extends StatelessWidget {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: AppColors.orange,
-          tooltip: "Plan Production Batch",
-          onPressed: () {
-            controller.resetForm();
-            Get.toNamed(RoutesNames.createBatch);
-          },
-          child: const Icon(Icons.add, color: AppColors.white),
-        ),
+
       ),
     );
   }

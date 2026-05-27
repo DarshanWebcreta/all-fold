@@ -13,124 +13,63 @@ class BatchesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<BulkExecutionController>();
-    final selectedFilter = "planned".obs;
 
-    return Column(
-      children: [
-        // Horizontal Filter Chips
-        Obx(() {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+    return Obx(() {
+      if (controller.isLoadingBatches.value) {
+        return const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.orange),
+          ),
+        );
+      }
+
+      if (controller.batchesError.value.isNotEmpty) {
+        return Center(
+          child: TextWidget(
+            text: controller.batchesError.value,
+            clr: AppColors.red,
+            fontSize: FontSizes.mediuam,
+            fontWeight: FontWeights.medium,
+          ),
+        );
+      }
+
+      final batchesList = controller.activeApiBatches;
+
+      if (batchesList.isEmpty) {
+        return RefreshIndicator(
+          onRefresh: () => controller.fetchActiveBatches(),
+          color: AppColors.orange,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              _buildFilterChip("Planned", "planned", selectedFilter.value, () => selectedFilter.value = "planned"),
-              const SizedBox(width: 8),
-              _buildFilterChip("Active WIP", "in_progress", selectedFilter.value, () => selectedFilter.value = "in_progress"),
-              const SizedBox(width: 8),
-              _buildFilterChip("Completed", "completed", selectedFilter.value, () => selectedFilter.value = "completed"),
-            ],
-          ).paddingSymmetric(vertical: 8);
-        }),
-        const SizedBox(height: 8),
-        // Batches List
-        Expanded(
-          child: Obx(() {
-            if (controller.isLoadingBatches.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.orange),
-                ),
-              );
-            }
-
-            if (controller.batchesError.value.isNotEmpty) {
-              return Center(
+              SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+              const Center(
                 child: TextWidget(
-                  text: controller.batchesError.value,
-                  clr: AppColors.red,
+                  text: "No production batches found.",
+                  clr: AppColors.grey,
                   fontSize: FontSizes.mediuam,
                   fontWeight: FontWeights.medium,
                 ),
-              );
-            }
-
-            final filterVal = selectedFilter.value;
-            final filteredList = controller.activeApiBatches.where((b) => b.status == filterVal).toList();
-
-            if (filteredList.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: () => controller.fetchActiveBatches(),
-                color: AppColors.orange,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                    const Center(
-                      child: TextWidget(
-                        text: "No production batches in this stage.",
-                        clr: AppColors.grey,
-                        fontSize: FontSizes.mediuam,
-                        fontWeight: FontWeights.medium,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: () => controller.fetchActiveBatches(),
-              color: AppColors.orange,
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 80),
-                itemCount: filteredList.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return ApiBatchCard(batch: filteredList[index]);
-                },
               ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilterChip(
-    String label,
-    String value,
-    String selectedValue,
-    VoidCallback onTap,
-  ) {
-    final isSelected = value == selectedValue;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.orange : AppColors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.orange : AppColors.borderClr,
+            ],
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.orange.withValues(alpha:0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : [],
+        );
+      }
+
+      return RefreshIndicator(
+        onRefresh: () => controller.fetchActiveBatches(),
+        color: AppColors.orange,
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 80),
+          itemCount: batchesList.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return ApiBatchCard(batch: batchesList[index]);
+          },
         ),
-        child: TextWidget(
-          text: label,
-          fontSize: FontSizes.small,
-          fontWeight: FontWeights.bold,
-          clr: isSelected ? AppColors.white : AppColors.grey,
-        ),
-      ),
-    );
+      );
+    });
   }
 }

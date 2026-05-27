@@ -88,6 +88,7 @@ class UnplannedProduct {
     data['product_name'] = productName;
     data['sku'] = sku;
     data['total_ordered'] = totalOrdered;
+    
     data['total_reserved'] = totalReserved;
     data['pending_qty'] = pendingQty;
     data['ready_stock'] = readyStock;

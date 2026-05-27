@@ -166,16 +166,16 @@ class ApiComponent {
 class PipelineStage {
   int? stageId;
   String? stageName;
-  int? stock;
-  int? reserved;
+  double? stock;
+  double? reserved;
 
   PipelineStage({this.stageId, this.stageName, this.stock, this.reserved});
 
   PipelineStage.fromJson(Map<String, dynamic> json) {
     stageId = json['stage_id'];
     stageName = json['stage_name'];
-    stock = json['stock'];
-    reserved = json['reserved'];
+    stock = (json['stock'] as num?)?.toDouble();
+    reserved = (json['reserved'] as num?)?.toDouble();
   }
 
   Map<String, dynamic> toJson() {

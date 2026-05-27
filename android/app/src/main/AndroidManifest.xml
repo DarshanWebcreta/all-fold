@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="all_fold"
+        android:label="All Fold"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

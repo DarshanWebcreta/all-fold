@@ -170,7 +170,7 @@ class ApiBatchCard extends StatelessWidget {
             ),
 
           // Final Assemble Button
-          (() {
+          Obx(() {
             final comps = batch.components ?? [];
             final allComponentsReady = comps.isNotEmpty && comps.every((c) {
               final stagesList = c.pipelineStages ?? [];
@@ -182,6 +182,10 @@ class ApiBatchCard extends StatelessWidget {
             if (batch.status == "completed") {
               return const SizedBox();
             }
+
+            final controller = Get.find<BulkExecutionController>();
+            final isPrepared = controller.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
+
             return Column(
               children: [
                 const SizedBox(height: 16),
@@ -191,7 +195,9 @@ class ApiBatchCard extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: allComponentsReady ? AppColors.green : AppColors.lightGrey,
+                      backgroundColor: allComponentsReady 
+                          ? (isPrepared ? AppColors.green : AppColors.orange) 
+                          : AppColors.lightGrey,
                       foregroundColor: allComponentsReady ? AppColors.white : AppColors.grey,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -204,18 +210,21 @@ class ApiBatchCard extends StatelessWidget {
                     ),
                     onPressed: allComponentsReady
                         ? () {
-                            final controller = Get.find<BulkExecutionController>();
-                            controller.assembleBatch(batch.batchId ?? 0);
+                            if (isPrepared) {
+                              controller.assembleBatch(batch.batchId ?? 0);
+                            } else {
+                              controller.prepareBatch(batch.batchId ?? 0);
+                            }
                           }
                         : null,
                     icon: Icon(
-                      Icons.precision_manufacturing,
+                      isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing,
                       color: allComponentsReady ? AppColors.white : AppColors.grey,
                       size: 20,
                     ),
-                    label: const Text(
-                      "Final Assemble Batch",
-                      style: TextStyle(
+                    label: Text(
+                      isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)",
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: FontSizes.mediuam,
                       ),
@@ -224,7 +233,7 @@ class ApiBatchCard extends StatelessWidget {
                 ),
               ],
             );
-          })(),
+          }),
         ],
       ),
     );
@@ -393,7 +402,7 @@ class ApiBatchCard extends StatelessWidget {
                     clr: AppColors.grey,
                   ),
                   TextWidget(
-                    text: "${reserved.toInt()} / ${c.totalNeeded ?? 0}",
+                    text: "${(progress * (c.totalNeeded ?? 0)).round()} / ${c.totalNeeded ?? 0}",
                     fontSize: FontSizes.small,
                     fontWeight: FontWeights.bold,
                     clr: AppColors.grey,
@@ -429,11 +438,17 @@ class ApiBatchCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStageBox(1, c),
-              const Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
-              _buildStageBox(2, c),
-              const Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
-              _buildStageBox(3, c),
+              Expanded(child: _buildStageBox(1, c)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
+              ),
+              Expanded(child: _buildStageBox(2, c)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
+              ),
+              Expanded(child: _buildStageBox(3, c)),
             ],
           ),
           const SizedBox(height: 16),
@@ -520,8 +535,7 @@ class ApiBatchCard extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           decoration: BoxDecoration(
             color: bgClr,
             borderRadius: BorderRadius.circular(6),
@@ -532,11 +546,25 @@ class ApiBatchCard extends StatelessWidget {
             ),
           ),
           child: Center(
-            child: TextWidget(
-              text: "$reservedVal",
-              fontSize: FontSizes.small,
-              fontWeight: FontWeights.bold,
-              clr: stageColor,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextWidget(
+                  text: stage?.stageName ?? "Stage $stageId",
+                  fontSize: 10,
+                  fontWeight: FontWeights.bold,
+                  clr: stageColor,
+                  maxLine: 2,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                TextWidget(
+                  text: "$reservedVal",
+                  fontSize: FontSizes.small,
+                  fontWeight: FontWeights.bold,
+                  clr: stageColor,
+                ),
+              ],
             ),
           ),
         ),

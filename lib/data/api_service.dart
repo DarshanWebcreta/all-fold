@@ -75,6 +75,9 @@ abstract class ApiService {
 
   @POST(ApiPath.assembleBatchApi)
   Future<dynamic> assembleBatch(@Body() Map<String, dynamic> body);
+
+  @POST(ApiPath.prepareBatchApi)
+  Future<dynamic> prepareBatch(@Body() Map<String, dynamic> body);
 }
 
 

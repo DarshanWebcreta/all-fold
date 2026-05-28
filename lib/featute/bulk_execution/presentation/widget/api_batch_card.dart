@@ -43,29 +43,33 @@ class ApiBatchCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                spacing: 8,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightBlue,
-                      borderRadius: BorderRadius.circular(4),
+              Expanded(
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.lightBlue,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: TextWidget(
+                        text: "#${batch.batchNo}",
+                        fontSize: FontSizes.tiny,
+                        fontWeight: FontWeights.bold,
+                        clr: AppColors.blue,
+                      ),
                     ),
-                    child: TextWidget(
-                      text: "#${batch.batchNo}",
-                      fontSize: FontSizes.tiny,
-                      fontWeight: FontWeights.bold,
-                      clr: AppColors.blue,
+                    Flexible(
+                      child: TextWidget(
+                        text: batch.batchName ?? "Unnamed Batch",
+                        fontSize: FontSizes.large,
+                        fontWeight: FontWeights.bold,
+                        clr: AppColors.black,
+                      ),
                     ),
-                  ),
-                  TextWidget(
-                    text: batch.batchName ?? "Unnamed Batch",
-                    fontSize: FontSizes.large,
-                    fontWeight: FontWeights.bold,
-                    clr: AppColors.black,
-                  ),
-                ],
+                  ],
+                ),
               ),
               TextWidget(
                 text: "Qty: ${batch.plannedQty ?? 0}",
@@ -468,29 +472,108 @@ class ApiBatchCard extends StatelessWidget {
                 children: [
                   // Move (yellow button)
                   if (c.isActionableForCurrentUser == true && !isFullyCompleted && allPrevCompleted)
-                    InkWell(
-                      onTap: () => _openMovementDialog(context, c),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber[100],
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.amber[300]!),
-                        ),
-                        child: const Row(
-                          spacing: 4,
-                          children: [
-                            Icon(Icons.sync_alt, color: Colors.orange, size: 16),
-                            TextWidget(
-                              text: "Move",
-                              fontSize: FontSizes.tiny,
-                              fontWeight: FontWeights.bold,
-                              clr: Colors.orange,
+                    (() {
+                      final isNotStarted = c.jobStatus == "not_started";
+                      if (isNotStarted) {
+                        return InkWell(
+                          onTap: () {
+                            Get.dialog(
+                              Dialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                backgroundColor: AppColors.white,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.info_outline, color: AppColors.orange, size: 48),
+                                      const SizedBox(height: 16),
+                                      const TextWidget(
+                                        text: "Job Not Started",
+                                        fontSize: FontSizes.large,
+                                        fontWeight: FontWeights.bold,
+                                        clr: AppColors.black,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const TextWidget(
+                                        text: "Please ask the administrator to create a job for this component.",
+                                        fontSize: FontSizes.mediuam,
+                                        clr: AppColors.grey,
+                                        textAlign: TextAlign.center,
+                                        maxLine: 3,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.orange,
+                                            foregroundColor: AppColors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            elevation: 0,
+                                          ),
+                                          onPressed: () => Get.back(),
+                                          child: const TextWidget(
+                                            text: "Okay",
+                                            fontWeight: FontWeights.bold,
+                                            clr: AppColors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.lightGrey,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.borderClr),
                             ),
-                          ],
+                            child: const Row(
+                              spacing: 4,
+                              children: [
+                                Icon(Icons.info_outline, color: AppColors.grey, size: 16),
+                                TextWidget(
+                                  text: "Move",
+                                  fontSize: FontSizes.tiny,
+                                  fontWeight: FontWeights.bold,
+                                  clr: AppColors.grey,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return InkWell(
+                        onTap: () => _openMovementDialog(context, c),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber[100],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.amber[300]!),
+                          ),
+                          child: const Row(
+                            spacing: 4,
+                            children: [
+                              Icon(Icons.sync_alt, color: Colors.orange, size: 16),
+                              TextWidget(
+                                text: "Move",
+                                fontSize: FontSizes.tiny,
+                                fontWeight: FontWeights.bold,
+                                clr: Colors.orange,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
+                      );
+                    })()
                   else
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

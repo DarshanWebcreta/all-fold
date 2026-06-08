@@ -6,55 +6,59 @@ import 'package:all_fold/core/component/text_widget.dart';
 import 'package:all_fold/core/utils/font_size.dart';
 import 'package:all_fold/core/utils/font_weight.dart';
 import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart';
-import 'package:all_fold/featute/bulk_execution/presentation/widget/batch_stage_movement_dialog.dart';
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/batch_history_screen.dart';
+import 'package:all_fold/featute/bulk_execution/presentation/widget/batch_card_components/api_batch_component_tracker.dart';
 
 class ApiBatchCard extends StatelessWidget {
   final ApiBatch batch;
 
   const ApiBatchCard({super.key, required this.batch});
 
-  void _openMovementDialog(BuildContext context, ApiComponent component) {
-    FocusScope.of(context).unfocus();
-    FocusManager.instance.primaryFocus?.unfocus();
-    Get.dialog(
-      BatchStageMovementDialog(
-        batchId: batch.batchId ?? 0,
-        component: component,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<BulkExecutionController>();
-    final statusColor = batch.status == "completed"
-        ? AppColors.green
-        : batch.status == "in_progress"
-            ? AppColors.blue
-            : AppColors.orange;
 
     return Obx(() {
       final isExpanded = controller.expandedBatchIds.contains(batch.batchId);
 
+      // Status color/label
+      final String statusLabel = (batch.status ?? "planned").replaceAll('_', ' ');
+      final Color statusClr = batch.status == "completed"
+          ? AppColors.green
+          : batch.status == "in_progress"
+              ? AppColors.blue
+              : AppColors.orange;
+      final Color statusBg = batch.status == "completed"
+          ? AppColors.lightGreen
+          : batch.status == "in_progress"
+              ? AppColors.lightBlue
+              : const Color(0xFFFFF3E0);
+
+      // Ready summary for collapsed view
+      final comps = batch.components ?? [];
+      final readyCount = comps.where((c) {
+        final s = c.pipelineStages ?? [];
+        final last = s.isNotEmpty ? s.map((x) => x.stageId ?? 0).reduce((a, b) => a > b ? a : b) : 0;
+        return c.jobStatus == "completed" && (c.currentStageId ?? 0) == last;
+      }).length;
+
       return CardWidget(
         verticalPadding: 12,
-        horiZontalPadding: 16,
+        horiZontalPadding: 14,
         bgClr: AppColors.white,
         borderClr: AppColors.borderClr,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Tappable Header to Expand/Collapse
+            // ── Tappable header ──────────────────────────────────────────
             InkWell(
               onTap: () {
-                if (batch.batchId != null) {
-                  if (controller.expandedBatchIds.contains(batch.batchId)) {
-                    controller.expandedBatchIds.remove(batch.batchId);
-                  } else {
-                    controller.expandedBatchIds.add(batch.batchId!);
-                  }
+                if (batch.batchId == null) return;
+                if (controller.expandedBatchIds.contains(batch.batchId)) {
+                  controller.expandedBatchIds.remove(batch.batchId);
+                } else {
+                  controller.expandedBatchIds.add(batch.batchId!);
                 }
               },
               borderRadius: BorderRadius.circular(8),
@@ -62,268 +66,131 @@ class ApiBatchCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Batch number badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: AppColors.lightBlue, borderRadius: BorderRadius.circular(4)),
+                        child: TextWidget(text: "#${batch.batchNo}", fontSize: FontSizes.small, fontWeight: FontWeights.bold, clr: AppColors.blue),
+                      ),
+                      const SizedBox(width: 8),
+                      // Batch name
                       Expanded(
-                        child: Row(
-                          spacing: 8,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.lightBlue,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: TextWidget(
-                                text: "#${batch.batchNo}",
-                                fontSize: FontSizes.tiny,
-                                fontWeight: FontWeights.bold,
-                                clr: AppColors.blue,
-                              ),
-                            ),
-                            Flexible(
-                              child: TextWidget(
-                                text: batch.batchName ?? "Unnamed Batch",
-                                fontSize: FontSizes.large,
-                                fontWeight: FontWeights.bold,
-                                clr: AppColors.black,
-                              ),
-                            ),
-                          ],
+                        child: TextWidget(text: batch.batchName ?? "Unnamed Batch", fontSize: FontSizes.large, fontWeight: FontWeights.bold, clr: AppColors.black),
+                      ),
+                      // History icon
+                      GestureDetector(
+                        onTap: () {
+                          if (batch.batchId != null) Get.to(() => BatchHistoryScreen(batchId: batch.batchId!, batchNo: batch.batchNo ?? ""));
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.history_rounded, color: AppColors.orange, size: 18),
                         ),
                       ),
-                      Row(
-                        spacing: 8,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.history, color: AppColors.orange, size: 20),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            tooltip: "Batch History Log",
-                            onPressed: () {
-                              if (batch.batchId != null) {
-                                Get.to(() => BatchHistoryScreen(batchId: batch.batchId!, batchNo: batch.batchNo ?? ""));
-                              }
-                            },
-                          ),
-                          TextWidget(
-                            text: "Qty: ${batch.plannedQty ?? 0}",
-                            fontSize: FontSizes.small,
-                            fontWeight: FontWeights.bold,
-                            clr: AppColors.themeColor,
-                          ),
-                          AnimatedRotation(
-                            turns: isExpanded ? 0.5 : 0.0,
-                            duration: const Duration(milliseconds: 200),
-                            child: const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: AppColors.grey,
-                              size: 24,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(Icons.keyboard_arrow_down, color: AppColors.grey, size: 22),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  // Product Info and Collapsed Progress Summary
+                  const SizedBox(height: 5),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: TextWidget(
-                          text: "${batch.productName} (SKU: ${batch.sku})",
-                          fontSize: FontSizes.small,
-                          fontWeight: FontWeights.medium,
-                          clr: AppColors.grey,
-                        ),
+                        child: TextWidget(text: "${batch.productName ?? ''} · ${batch.sku ?? ''}", fontSize: FontSizes.small, fontWeight: FontWeights.medium, clr: AppColors.grey),
                       ),
+                      const SizedBox(width: 8),
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
+                        child: TextWidget(text: statusLabel, fontSize: FontSizes.small, fontWeight: FontWeights.bold, clr: statusClr),
+                      ),
+                      const SizedBox(width: 8),
+                      // Ready count (collapsed only)
                       if (!isExpanded)
-                        (() {
-                          final comps = batch.components ?? [];
-                          final readyCount = comps.where((c) {
-                            final stagesList = c.pipelineStages ?? [];
-                            final lastStageId = stagesList.isNotEmpty
-                                ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-                                : 0;
-                            return c.jobStatus == "completed" && (c.currentStageId ?? 0) == lastStageId;
-                          }).length;
-
-                          final allReady = comps.isNotEmpty && readyCount == comps.length;
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: allReady ? AppColors.lightGreen : AppColors.lightGrey,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: TextWidget(
-                              text: "$readyCount/${comps.length} Ready",
-                              fontSize: FontSizes.tiny,
-                              fontWeight: FontWeights.bold,
-                              clr: allReady ? AppColors.green : AppColors.grey,
-                            ),
-                          );
-                        })(),
+                        TextWidget(text: "$readyCount/${comps.length} ready", fontSize: FontSizes.small, fontWeight: FontWeights.medium, clr: AppColors.grey),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // Expanded Content
+            // ── Expanded content ─────────────────────────────────────────
             if (isExpanded) ...[
-              const SizedBox(height: 12),
-              // Inventory Allocation Sub-Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.lightGrey,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.borderClr.withValues(alpha:0.5)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.layers_outlined, color: AppColors.blue, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontFamily: "Outfit",
-                            fontSize: FontSizes.small,
-                            color: AppColors.black,
-                          ),
-                          children: [
-                            const TextSpan(text: "Inventory Allocation  "),
-                            const TextSpan(
-                              text: "Batch Size:",
-                              style: TextStyle(color: AppColors.grey),
-                            ),
-                            TextSpan(
-                              text: "${batch.plannedQty}.00  ",
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const TextSpan(
-                              text: "Status:",
-                              style: TextStyle(color: AppColors.grey),
-                            ),
-                            TextSpan(
-                              text: (batch.status ?? "PLANNED").toUpperCase(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 10),
+              const Divider(color: AppColors.borderClr, height: 1),
+              const SizedBox(height: 10),
+
+              // Batch summary stats — 3 pill chips in a row
+              Row(
+                children: [
+                  _statChip("Batch Size", "${batch.plannedQty ?? 0}", AppColors.lightBlue, AppColors.blue),
+                  const SizedBox(width: 8),
+                  _statChip("Components", "${comps.length}", AppColors.lightGrey, AppColors.grey),
+                  const SizedBox(width: 8),
+                  _statChip("Ready", "$readyCount / ${comps.length}",
+                      readyCount == comps.length ? AppColors.lightGreen : AppColors.lightGrey,
+                      readyCount == comps.length ? AppColors.green : AppColors.grey),
+                ],
               ),
-              const SizedBox(height: 16),
 
-              // Divider
-              const Divider(color: AppColors.borderClr),
-              const SizedBox(height: 8),
-
-              // Components Staging Tracker Header
-              const TextWidget(
-                text: "Component Pipeline Tracking",
-                fontSize: FontSizes.small,
-                fontWeight: FontWeights.bold,
-                clr: AppColors.orange,
-              ),
-              const SizedBox(height: 8),
-
-              // Components List
-              if (batch.components != null)
+              if (comps.isNotEmpty) ...[
+                const SizedBox(height: 16),
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: batch.components!.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, idx) {
-                    final comp = batch.components![idx];
-                    bool allPrevCompleted = true;
+                  itemCount: comps.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (ctx, idx) {
+                    bool allPrev = true;
                     for (int i = 0; i < idx; i++) {
-                      if (batch.components![i].jobStatus != "completed") {
-                        allPrevCompleted = false;
-                        break;
-                      }
+                      if (comps[i].jobStatus != "completed") { allPrev = false; break; }
                     }
-                    return _buildComponentTracker(context, comp, allPrevCompleted);
+                    return ApiBatchComponentTracker(batch: batch, component: comps[idx], allPrevCompleted: allPrev);
                   },
                 ),
+              ],
 
-              // Final Assemble Button
-              Obx(() {
-                final comps = batch.components ?? [];
-                final allComponentsReady = comps.isNotEmpty && comps.every((c) {
-                  final stagesList = c.pipelineStages ?? [];
-                  final lastStageId = stagesList.isNotEmpty
-                      ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-                      : 0;
-                  return c.jobStatus == "completed" && (c.currentStageId ?? 0) == lastStageId;
-                });
-                if (batch.status == "completed") {
-                  return const SizedBox();
-                }
-
-                final controller = Get.find<BulkExecutionController>();
-                final isPrepared = controller.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
-
-                return Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    const Divider(color: AppColors.borderClr),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: allComponentsReady 
-                              ? (isPrepared ? AppColors.green : AppColors.orange) 
-                              : AppColors.lightGrey,
-                          foregroundColor: allComponentsReady ? AppColors.white : AppColors.grey,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: allComponentsReady ? Colors.transparent : AppColors.borderClr,
-                            ),
+              // ── Assemble button ────────────────────────────────────────
+              if (batch.status != "completed")
+                Obx(() {
+                  final allReady = comps.isNotEmpty && comps.every((c) {
+                    final s = c.pipelineStages ?? [];
+                    final last = s.isNotEmpty ? s.map((x) => x.stageId ?? 0).reduce((a, b) => a > b ? a : b) : 0;
+                    return c.jobStatus == "completed" && (c.currentStageId ?? 0) == last;
+                  });
+                  final ctrl = Get.find<BulkExecutionController>();
+                  final isPrepared = ctrl.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
+                  return Column(
+                    children: [
+                      const SizedBox(height: 14),
+                      const Divider(color: AppColors.borderClr, height: 1),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: allReady ? (isPrepared ? AppColors.green : AppColors.orange) : AppColors.lightGrey,
+                            foregroundColor: allReady ? AppColors.white : AppColors.grey,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: allReady ? Colors.transparent : AppColors.borderClr)),
                           ),
-                        ),
-                        onPressed: allComponentsReady
-                            ? () {
-                                FocusScope.of(context).unfocus();
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                if (isPrepared) {
-                                  controller.assembleBatch(batch.batchId ?? 0);
-                                } else {
-                                  controller.prepareBatch(batch.batchId ?? 0);
-                                }
-                              }
-                            : null,
-                        icon: Icon(
-                          isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing,
-                          color: allComponentsReady ? AppColors.white : AppColors.grey,
-                          size: 20,
-                        ),
-                        label: Text(
-                          isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: FontSizes.mediuam,
-                          ),
+                          onPressed: allReady ? () {
+                            FocusScope.of(context).unfocus();
+                            isPrepared ? ctrl.assembleBatch(batch.batchId ?? 0) : ctrl.prepareBatch(batch.batchId ?? 0);
+                          } : null,
+                          icon: Icon(isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing, size: 18),
+                          label: Text(isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: FontSizes.mediuam)),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }),
+                    ],
+                  );
+                }),
             ],
           ],
         ),
@@ -331,429 +198,18 @@ class ApiBatchCard extends StatelessWidget {
     });
   }
 
-  Widget _buildComponentTracker(BuildContext context, ApiComponent c, bool allPrevCompleted) {
-    // Calculate reserved count from stage allocations
-    // double reserved = 0;
-    // if (c.pipelineStages != null) {
-    //   for (var stage in c.pipelineStages!) {
-    //     reserved += (stage.reserved ?? 0);
-    //   }
-    // }
-
-    // Calculate stage-wise progress: 25% per stage if 4 stages, 33.3% (approx 30%) if 3 stages, etc.
-    final stagesList = c.pipelineStages ?? [];
-    final totalStages = stagesList.where((s) => s.stageId != null && s.stageId != 0).length;
-    int completedStages = 0;
-    final currentStageId = c.currentStageId ?? 0;
-    final isJobCompleted = c.jobStatus == "completed";
-
-    final lastStageId = stagesList.isNotEmpty
-        ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-        : 0;
-    final isFullyCompleted = isJobCompleted && currentStageId == lastStageId;
-
-    if (currentStageId > 0) {
-      if (isJobCompleted) {
-        completedStages = currentStageId;
-      } else {
-        completedStages = currentStageId - 1;
-      }
-    }
-
-    double progress = 0.0;
-    if (totalStages > 0) {
-      if (totalStages == 3) {
-        progress = completedStages * 0.3333;
-        if (completedStages >= 3) progress = 1.0;
-      } else if (totalStages == 4) {
-        progress = completedStages * 0.25;
-      } else {
-        progress = completedStages / totalStages;
-      }
-    }
-    progress = progress.clamp(0.0, 1.0);
-
+  Widget _statChip(String label, String value, Color bg, Color clr) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withValues(alpha:0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderClr.withValues(alpha:0.3)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Badge ID
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber[100],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: TextWidget(
-                  text: "${c.componentId ?? 0}",
-                  fontSize: FontSizes.tiny,
-                  fontWeight: FontWeights.bold,
-                  clr: Colors.orange[800]!,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextWidget(
-                      text: c.componentName ?? "Component",
-                      fontSize: FontSizes.mediuam,
-                      fontWeight: FontWeights.bold,
-                      clr: AppColors.black,
-                    ),
-                    TextWidget(
-                      text: "${c.qtyPerPc ?? 1} per unit",
-                      fontSize: FontSizes.tiny,
-                      fontWeight: FontWeights.medium,
-                      clr: AppColors.grey,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Component Status Badge
-              (() {
-                final status = c.jobStatus ?? "not_started";
-                Color bg;
-                Color textClr;
-                String label;
-                if (isFullyCompleted) {
-                  bg = AppColors.lightGreen;
-                  textClr = AppColors.green;
-                  label = "Ready";
-                } else if (status == "completed") {
-                  bg = AppColors.lightBlue;
-                  textClr = AppColors.blue;
-                  label = "Completed";
-                } else if (status == "processing") {
-                  bg = Colors.orange[50]!;
-                  textClr = Colors.orange;
-                  label = "Processing";
-                } else {
-                  bg = AppColors.lightGrey;
-                  textClr = AppColors.grey;
-                  label = "Not Started";
-                }
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: TextWidget(
-                    text: label,
-                    fontSize: FontSizes.tiny,
-                    fontWeight: FontWeights.bold,
-                    clr: textClr,
-                  ),
-                );
-              })(),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Req Qty & Reserved Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const TextWidget(
-                    text: "REQ. QTY",
-                    fontSize: FontSizes.tiny,
-                    fontWeight: FontWeights.medium,
-                    clr: AppColors.grey,
-                  ),
-                  TextWidget(
-                    text: "${c.totalNeeded ?? 0}",
-                    fontSize: FontSizes.small,
-                    fontWeight: FontWeights.bold,
-                    clr: AppColors.black,
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const TextWidget(
-                    text: "RESERVED STATUS",
-                    fontSize: FontSizes.tiny,
-                    fontWeight: FontWeights.medium,
-                    clr: AppColors.grey,
-                  ),
-                  TextWidget(
-                    text: "${(progress * (c.totalNeeded ?? 0)).round()} / ${c.totalNeeded ?? 0}",
-                    fontSize: FontSizes.small,
-                    fontWeight: FontWeights.bold,
-                    clr: AppColors.grey,
-                  ),
-                  const SizedBox(height: 4),
-                  // Progress bar
-                  SizedBox(
-                    width: 100,
-                    height: 4,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: AppColors.borderClr,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.green),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Pipeline Stages
-          const TextWidget(
-            text: "STAGING PIPELINE TRACKING",
-            fontSize: FontSizes.tiny,
-            fontWeight: FontWeights.bold,
-            clr: AppColors.grey,
-          ),
-          const SizedBox(height: 6),
-          if (c.pipelineStages != null && c.pipelineStages!.isNotEmpty)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: () {
-                final List<Widget> children = [];
-                final stages = c.pipelineStages!;
-                for (int i = 0; i < stages.length; i++) {
-                  children.add(
-                    Expanded(
-                      child: _buildStageBox(stages[i], c),
-                    ),
-                  );
-                  if (i < stages.length - 1) {
-                    children.add(
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
-                      ),
-                    );
-                  }
-                }
-                return children;
-              }(),
-            ),
-          const SizedBox(height: 16),
-
-          // Operational Actions
-          if (c.isActionableForCurrentUser == true && !isFullyCompleted )
-            (() {
-              final isNotStarted = c.jobStatus == "not_started";
-              if (isNotStarted) {
-                return InkWell(
-                  onTap: () {
-                    Get.dialog(
-                      Dialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        backgroundColor: AppColors.white,
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.info_outline, color: AppColors.orange, size: 48),
-                              const SizedBox(height: 16),
-                              const TextWidget(
-                                text: "Job Not Started",
-                                fontSize: FontSizes.large,
-                                fontWeight: FontWeights.bold,
-                                clr: AppColors.black,
-                              ),
-                              const SizedBox(height: 12),
-                              const TextWidget(
-                                text: "Please ask the administrator to create a job for this component.",
-                                fontSize: FontSizes.mediuam,
-                                clr: AppColors.grey,
-                                textAlign: TextAlign.center,
-                                maxLine: 3,
-                              ),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.orange,
-                                    foregroundColor: AppColors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    elevation: 0,
-                                  ),
-                                  onPressed: () => Get.back(),
-                                  child: const TextWidget(
-                                    text: "Okay",
-                                    fontWeight: FontWeights.bold,
-                                    clr: AppColors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightGrey,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.borderClr),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: 4,
-                      children: [
-                        Icon(Icons.info_outline, color: AppColors.grey, size: 16),
-                        TextWidget(
-                          text: "Move",
-                          fontSize: FontSizes.tiny,
-                          fontWeight: FontWeights.bold,
-                          clr: AppColors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return InkWell(
-                onTap: () => _openMovementDialog(context, c),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[100],
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.amber[300]!),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    spacing: 4,
-                    children: [
-                      Icon(Icons.sync_alt, color: Colors.orange, size: 16),
-                      TextWidget(
-                        text: "Move",
-                        fontSize: FontSizes.tiny,
-                        fontWeight: FontWeights.bold,
-                        clr: Colors.orange,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            })()
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Center(
-                child: TextWidget(
-                  text: isFullyCompleted ? "Ready" : "Read-Only",
-                  fontSize: FontSizes.tiny,
-                  fontWeight: FontWeights.medium,
-                  clr: AppColors.grey,
-                ),
-              ),
-            ),
+          TextWidget(text: label, fontSize: FontSizes.tiny, fontWeight: FontWeights.medium, clr: clr.withValues(alpha: 0.7)),
+          const SizedBox(height: 1),
+          TextWidget(text: value, fontSize: FontSizes.small, fontWeight: FontWeights.bold, clr: clr),
         ],
       ),
-    );
-  }
-
-  Widget _buildStageBox(PipelineStage stage, ApiComponent c) {
-    final stageId = stage.stageId ?? 0;
-    final reservedVal = stage.reserved ?? 0;
-    final isCurrentStage = c.currentStageId == stageId;
-
-    Color stageColor;
-    Color bgClr;
-    if (stageId == 1) {
-      stageColor = Colors.orange[400]!;
-      bgClr = Colors.orange[50]!;
-    } else if (stageId == 2) {
-      stageColor = Colors.blue[400]!;
-      bgClr = Colors.blue[50]!;
-    } else if (stageId == 3) {
-      stageColor = Colors.green[400]!;
-      bgClr = Colors.green[50]!;
-    } else {
-      stageColor = Colors.purple[400]!;
-      bgClr = Colors.purple[50]!;
-    }
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          decoration: BoxDecoration(
-            color: bgClr,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: stageColor,
-              width: 1.5,
-              style: BorderStyle.solid,
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextWidget(
-                  text: stage.stageName ?? "Stage $stageId",
-                  fontSize: 10,
-                  fontWeight: FontWeights.bold,
-                  clr: stageColor,
-                  maxLine: 2,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                TextWidget(
-                  text: "$reservedVal",
-                  fontSize: FontSizes.small,
-                  fontWeight: FontWeights.bold,
-                  clr: stageColor,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        // Active indicator dot
-        if (isCurrentStage)
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: stageColor,
-              shape: BoxShape.circle,
-            ),
-          )
-        else
-          const SizedBox(height: 6),
-      ],
     );
   }
 }

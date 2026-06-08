@@ -6,6 +6,7 @@ import 'package:all_fold/core/utils/font_size.dart';
 import 'package:all_fold/core/utils/font_weight.dart';
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/unplanned_demand_card.dart';
+import 'package:all_fold/core/component/error_box_widget.dart';
 
 class UnplannedDemandTab extends StatelessWidget {
   const UnplannedDemandTab({super.key});
@@ -46,6 +47,14 @@ class UnplannedDemandTab extends StatelessWidget {
               ],
             ),
           ),
+        );
+      }
+
+      if (controller.unplannedError.value.isNotEmpty) {
+        return ErrorBoxWidget(
+          errorMessage: "Please contact administrative support if the issue persists.",
+          title: "Unable to Load Demand",
+          onRefresh: () => controller.fetchUnplannedDemand(),
         );
       }
 

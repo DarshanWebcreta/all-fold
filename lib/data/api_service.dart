@@ -7,6 +7,8 @@ import 'package:all_fold/featute/products/model/product_list_model.dart';
 import 'package:all_fold/featute/auth/model/user_model.dart';
 import 'package:all_fold/featute/bulk_execution/model/unplanned_demand_model.dart';
 import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart';
+import 'package:all_fold/featute/bulk_execution/model/bulk_history_model.dart';
+import 'package:all_fold/featute/bulk_execution/model/batch_movement_model.dart';
 import 'package:dio/dio.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:retrofit/retrofit.dart';
@@ -78,6 +80,19 @@ abstract class ApiService {
 
   @POST(ApiPath.prepareBatchApi)
   Future<dynamic> prepareBatch(@Body() Map<String, dynamic> body);
+
+  @GET(ApiPath.getBatchesHistory)
+  Future<BulkHistoryResponse> getBatchesHistory({
+    @Query("page") int? page,
+    @Query("per_page") int? perPage,
+  });
+
+  @GET("/api/v1/execution/batches/{batch_id}/history")
+  Future<BatchMovementHistoryResponse> getBatchMovementHistory({
+    @Path("batch_id") required int batchId,
+    @Query("page") int? page,
+    @Query("per_page") int? perPage,
+  });
 }
 
 

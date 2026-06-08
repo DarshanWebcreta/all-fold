@@ -33,6 +33,7 @@ class ApiPath {
   static const String moveStageApi = "/api/v1/execution/move-stage";
   static const String assembleBatchApi = "/api/v1/execution/process";
   static const String prepareBatchApi = "/api/v1/execution/prepare";
+  static const String getBatchesHistory = "/api/v1/execution/batches/history";
 
 
   // Picklists

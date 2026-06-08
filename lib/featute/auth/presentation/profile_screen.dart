@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: TextWidget(
-                          text: user.isAdmin == true ? "HQ Admin" : "Terminal Operator",
+                          text: user.isAdmin == true ? "HQ Admin" : "Station Operator",
                           fontSize: FontSizes.small,
                           fontWeight: FontWeights.bold,
                           clr: user.isAdmin == true ? AppColors.orange : AppColors.themeColor,
@@ -140,9 +140,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                // 2. Terminal & Warehouse Details
+                // 2. Station & Warehouse Details
                 const TextWidget(
-                  text: "Terminal assignment",
+                  text: "Station assignment",
                   fontSize: FontSizes.mediuam,
                   fontWeight: FontWeights.bold,
                   clr: AppColors.grey,
@@ -290,7 +290,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                   icon: const Icon(Icons.logout_outlined, size: 20),
                   label: const Text(
-                    "Logout from Terminal",
+                    "Logout",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: FontSizes.mediuam,

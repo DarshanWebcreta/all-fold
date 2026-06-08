@@ -7,8 +7,8 @@ import 'package:all_fold/core/utils/font_weight.dart';
 import 'package:all_fold/core/utils/function_component.dart';
 import 'package:all_fold/featute/auth/controller/auth_controller.dart';
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
-import 'package:all_fold/featute/bulk_execution/presentation/widget/unplanned_demand_tab.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/batches_tab.dart';
+import 'package:all_fold/featute/bulk_execution/presentation/widget/history_tab.dart';
 import 'package:all_fold/core/routes/route_name.dart';
 
 class BulkExecutionDashboard extends StatelessWidget {
@@ -17,7 +17,7 @@ class BulkExecutionDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Inject Controller
-    final controller = Get.put(BulkExecutionController());
+    Get.put(BulkExecutionController());
     final authController = Get.find<AuthController>();
 
     return DefaultTabController(
@@ -52,7 +52,7 @@ class BulkExecutionDashboard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.logout_outlined, color: AppColors.red),
-                    tooltip: "Disconnect Terminal",
+                    tooltip: "Disconnect",
                     onPressed: () {
                       Get.dialog(
                         Dialog(
@@ -149,15 +149,15 @@ class BulkExecutionDashboard extends StatelessWidget {
                 indicatorColor: AppColors.orange,
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: [
-                  Tab(text: "Unplanned Demand"),
                   Tab(text: "Batches"),
+                  Tab(text: "History"),
                 ],
               ),
               const Expanded(
                 child: TabBarView(
                   children: [
-                    UnplannedDemandTab(),
-                    BatchesTab(),
+                    BatchesTab(isHistory: false),
+                    HistoryTab(),
                   ],
                 ),
               ),

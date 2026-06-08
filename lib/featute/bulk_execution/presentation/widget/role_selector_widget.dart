@@ -31,7 +31,7 @@ class RoleSelectorWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const TextWidget(
-                    text: "Active Operator Terminal",
+                    text: "Active Operator Station",
                     fontSize: FontSizes.tiny,
                     fontWeight: FontWeights.medium,
                     clr: AppColors.grey,

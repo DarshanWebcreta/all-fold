@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
       ),
       child: GetMaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'ALLFOLD Manufacturing Terminal',
+        title: 'ALLFOLD Manufacturing',
         initialBinding: BindingsBuilder(() {
           Get.put(AuthController(), permanent: true);
         }),

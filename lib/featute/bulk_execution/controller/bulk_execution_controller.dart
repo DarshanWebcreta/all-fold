@@ -8,6 +8,8 @@ import 'package:all_fold/core/di/service_locator.dart';
 import 'package:all_fold/data/api_service.dart';
 import 'package:all_fold/featute/bulk_execution/model/unplanned_demand_model.dart';
 import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart';
+import 'package:all_fold/featute/bulk_execution/model/bulk_history_model.dart';
+import 'package:all_fold/featute/bulk_execution/model/batch_movement_model.dart';
 import 'package:dio/dio.dart';
 
 class BulkExecutionController extends GetxController {
@@ -24,7 +26,26 @@ class BulkExecutionController extends GetxController {
   final activeApiBatches = <ApiBatch>[].obs;
   final isLoadingBatches = false.obs;
   final batchesError = "".obs;
+
+  // History Batches State
+  final historyBatches = <BulkHistoryBatch>[].obs;
+  final isLoadingHistory = false.obs;
+  final historyError = "".obs;
+  final historyCurrentPage = 1.obs;
+  final historyLastPage = 1.obs;
+  final historyTotal = 0.obs;
+
+  // Batch Movements History State
+  final batchMovements = <BatchMovement>[].obs;
+  final isLoadingMovements = false.obs;
+  final movementsError = "".obs;
+  final movementsCurrentPage = 1.obs;
+  final movementsLastPage = 1.obs;
+  final movementsTotal = 0.obs;
   final preparedBatches = <int>{}.obs;
+  final expandedBatchIds = <int>{}.obs;
+  final lastOperatedBatchId = Rxn<int>();
+  final lastOperatedComponentId = Rxn<int>();
 
   // Form State
   final selectedProduct = Rxn<ProductData>();
@@ -68,11 +89,13 @@ class BulkExecutionController extends GetxController {
     _seedInitialData();
     fetchUnplannedDemand();
     fetchActiveBatches();
+    fetchHistoryBatches();
 
     // Auto re-fetch or apply permission check when role/warehouse override changes
     ever(simulatedWarehouseId, (_) {
       fetchUnplannedDemand();
       fetchActiveBatches();
+      fetchHistoryBatches(isRefresh: true);
     });
   }
 
@@ -665,6 +688,8 @@ class BulkExecutionController extends GetxController {
     required int? toWarehouseId,
     String? remarks,
   }) async {
+    lastOperatedBatchId.value = batchId;
+    lastOperatedComponentId.value = componentId;
     FunctionalWidget.loaderHideShow(loaderShow: true);
     try {
       final apiService = getIt<ApiService>();
@@ -766,6 +791,8 @@ class BulkExecutionController extends GetxController {
   }
 
   Future<void> prepareBatch(int batchId) async {
+    lastOperatedBatchId.value = batchId;
+    lastOperatedComponentId.value = null;
     FunctionalWidget.loaderHideShow(loaderShow: true);
     try {
       final apiService = getIt<ApiService>();
@@ -817,6 +844,8 @@ class BulkExecutionController extends GetxController {
   }
 
   Future<void> assembleBatch(int batchId) async {
+    lastOperatedBatchId.value = batchId;
+    lastOperatedComponentId.value = null;
     FunctionalWidget.loaderHideShow(loaderShow: true);
     try {
       final apiService = getIt<ApiService>();
@@ -875,5 +904,164 @@ class BulkExecutionController extends GetxController {
 
     activeApiBatches[batchIndex] = batch;
     activeApiBatches.refresh();
+  }
+
+  Future<void> fetchHistoryBatches({int page = 1, bool isRefresh = false}) async {
+    if (isRefresh) {
+      historyCurrentPage.value = 1;
+    }
+    isLoadingHistory.value = true;
+    historyError.value = "";
+
+    try {
+      final apiService = getIt<ApiService>();
+      final response = await apiService.getBatchesHistory(
+        page: page,
+        perPage: 15,
+      );
+      if (response.success == true && response.data != null) {
+        if (page == 1) {
+          historyBatches.assignAll(response.data!.batches ?? []);
+        } else {
+          historyBatches.addAll(response.data!.batches ?? []);
+        }
+        
+        final pagination = response.data!.pagination;
+        if (pagination != null) {
+          historyCurrentPage.value = pagination.currentPage ?? 1;
+          historyLastPage.value = pagination.lastPage ?? 1;
+          historyTotal.value = pagination.total ?? 0;
+        }
+      } else {
+        historyError.value = response.message ?? "Failed to fetch production history";
+      }
+    } catch (e) {
+      debugPrint("API Error fetching history, using mock fallback: $e");
+      if (page == 1) {
+        _loadMockHistoryBatches();
+      }
+    } finally {
+      isLoadingHistory.value = false;
+    }
+  }
+
+  void _loadMockHistoryBatches() {
+    historyBatches.assignAll([
+      BulkHistoryBatch(
+        id: 12,
+        batchNo: "PB-2026-0012",
+        batchName: "Batch A - Assembly",
+        productId: 4,
+        productName: "Widget Type A",
+        sku: "WIDGET-A-01",
+        plannedQty: 150.0,
+        status: "in_progress",
+        createdBy: "John Doe",
+        createdAt: "04/06/2026 10:15",
+      ),
+      BulkHistoryBatch(
+        id: 13,
+        batchNo: "PB-2026-0013",
+        batchName: "Batch B - Prep",
+        productId: 1,
+        productName: "AllFold Premium Ladder",
+        sku: "LAD-PREM-01",
+        plannedQty: 80.0,
+        status: "completed",
+        createdBy: "Sarah Connor",
+        createdAt: "03/06/2026 09:30",
+      ),
+      BulkHistoryBatch(
+        id: 14,
+        batchNo: "PB-2026-0014",
+        batchName: "Batch C - Welding",
+        productId: 2,
+        productName: "Hunter",
+        sku: "hunter-5-grey",
+        plannedQty: 120.0,
+        status: "completed",
+        createdBy: "Tony Stark",
+        createdAt: "02/06/2026 14:45",
+      ),
+    ]);
+    historyCurrentPage.value = 1;
+    historyLastPage.value = 1;
+    historyTotal.value = 3;
+  }
+
+  Future<void> fetchBatchMovementHistory(int batchId, {int page = 1, bool isRefresh = false}) async {
+    if (isRefresh) {
+      movementsCurrentPage.value = 1;
+    }
+    isLoadingMovements.value = true;
+    movementsError.value = "";
+
+    try {
+      final apiService = getIt<ApiService>();
+      final response = await apiService.getBatchMovementHistory(
+        batchId: batchId,
+        page: page,
+        perPage: 15,
+      );
+      if (response.success == true && response.data != null) {
+        if (page == 1) {
+          batchMovements.assignAll(response.data!.movements ?? []);
+        } else {
+          batchMovements.addAll(response.data!.movements ?? []);
+        }
+        
+        final pagination = response.data!.pagination;
+        if (pagination != null) {
+          movementsCurrentPage.value = pagination.currentPage ?? 1;
+          movementsLastPage.value = pagination.lastPage ?? 1;
+          movementsTotal.value = pagination.total ?? 0;
+        }
+      } else {
+        movementsError.value = response.message ?? "Failed to fetch batch movements log";
+      }
+    } catch (e) {
+      debugPrint("API Error fetching batch movements log, using mock fallback: $e");
+      if (page == 1) {
+        _loadMockBatchMovementHistory(batchId);
+      }
+    } finally {
+      isLoadingMovements.value = false;
+    }
+  }
+
+  void _loadMockBatchMovementHistory(int batchId) {
+    batchMovements.assignAll([
+      BatchMovement(
+        id: 45,
+        movementNo: "M-00045",
+        jobId: 89,
+        componentName: "Steel Bracket A",
+        fromStage: "Stage 1 - Cutting",
+        toStage: "Stage 2 - Welding",
+        movementType: "Transfer",
+        quantity: 50.0,
+        weight: 25.5,
+        remarks: "Mobile Stage Move: Batch A - Assembly",
+        creatorName: "Jane Smith",
+        createdAt: "04/06/2026 12:30",
+      ),
+      BatchMovement(
+        id: 46,
+        movementNo: "M-00046",
+        jobId: 90,
+        componentName: "Folding Bolt",
+        fromStage: "Stage 2 - Welding",
+        toStage: "Stage 3 - Assembly",
+        movementType: "Transfer",
+        quantity: 100.0,
+        weight: 12.0,
+        remarks: "Transfer completed by welding lead.",
+        creatorName: "Jane Smith",
+        createdAt: "04/06/2026 13:10",
+      ),
+    ]);
+    movementsCurrentPage.value = 1;
+    movementsLastPage.value = 1;
+    movementsTotal.value = 2;
   }
 }

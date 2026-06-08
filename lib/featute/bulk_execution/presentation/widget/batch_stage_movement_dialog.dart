@@ -125,6 +125,8 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
 
     final remarks = remarksController.text.trim();
 
+    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     Get.back(); // Close dialog
 
     controller.moveComponentStage(

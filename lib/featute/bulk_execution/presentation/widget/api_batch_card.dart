@@ -8,6 +8,7 @@ import 'package:all_fold/core/utils/font_weight.dart';
 import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/batch_stage_movement_dialog.dart';
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
+import 'package:all_fold/featute/bulk_execution/presentation/batch_history_screen.dart';
 
 class ApiBatchCard extends StatelessWidget {
   final ApiBatch batch;
@@ -15,6 +16,8 @@ class ApiBatchCard extends StatelessWidget {
   const ApiBatchCard({super.key, required this.batch});
 
   void _openMovementDialog(BuildContext context, ApiComponent component) {
+    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     Get.dialog(
       BatchStageMovementDialog(
         batchId: batch.batchId ?? 0,
@@ -25,232 +28,317 @@ class ApiBatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<BulkExecutionController>();
     final statusColor = batch.status == "completed"
         ? AppColors.green
         : batch.status == "in_progress"
             ? AppColors.blue
             : AppColors.orange;
 
-    return CardWidget(
-      verticalPadding: 16,
-      horiZontalPadding: 16,
-      bgClr: AppColors.white,
-      borderClr: AppColors.borderClr,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Batch Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
+    return Obx(() {
+      final isExpanded = controller.expandedBatchIds.contains(batch.batchId);
+
+      return CardWidget(
+        verticalPadding: 12,
+        horiZontalPadding: 16,
+        bgClr: AppColors.white,
+        borderClr: AppColors.borderClr,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tappable Header to Expand/Collapse
+            InkWell(
+              onTap: () {
+                if (batch.batchId != null) {
+                  if (controller.expandedBatchIds.contains(batch.batchId)) {
+                    controller.expandedBatchIds.remove(batch.batchId);
+                  } else {
+                    controller.expandedBatchIds.add(batch.batchId!);
+                  }
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          spacing: 8,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.lightBlue,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: TextWidget(
+                                text: "#${batch.batchNo}",
+                                fontSize: FontSizes.tiny,
+                                fontWeight: FontWeights.bold,
+                                clr: AppColors.blue,
+                              ),
+                            ),
+                            Flexible(
+                              child: TextWidget(
+                                text: batch.batchName ?? "Unnamed Batch",
+                                fontSize: FontSizes.large,
+                                fontWeight: FontWeights.bold,
+                                clr: AppColors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        spacing: 8,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.history, color: AppColors.orange, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: "Batch History Log",
+                            onPressed: () {
+                              if (batch.batchId != null) {
+                                Get.to(() => BatchHistoryScreen(batchId: batch.batchId!, batchNo: batch.batchNo ?? ""));
+                              }
+                            },
+                          ),
+                          TextWidget(
+                            text: "Qty: ${batch.plannedQty ?? 0}",
+                            fontSize: FontSizes.small,
+                            fontWeight: FontWeights.bold,
+                            clr: AppColors.themeColor,
+                          ),
+                          AnimatedRotation(
+                            turns: isExpanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: AppColors.grey,
+                              size: 24,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Product Info and Collapsed Progress Summary
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: TextWidget(
+                          text: "${batch.productName} (SKU: ${batch.sku})",
+                          fontSize: FontSizes.small,
+                          fontWeight: FontWeights.medium,
+                          clr: AppColors.grey,
+                        ),
+                      ),
+                      if (!isExpanded)
+                        (() {
+                          final comps = batch.components ?? [];
+                          final readyCount = comps.where((c) {
+                            final stagesList = c.pipelineStages ?? [];
+                            final lastStageId = stagesList.isNotEmpty
+                                ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
+                                : 0;
+                            return c.jobStatus == "completed" && (c.currentStageId ?? 0) == lastStageId;
+                          }).length;
+
+                          final allReady = comps.isNotEmpty && readyCount == comps.length;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: allReady ? AppColors.lightGreen : AppColors.lightGrey,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: TextWidget(
+                              text: "$readyCount/${comps.length} Ready",
+                              fontSize: FontSizes.tiny,
+                              fontWeight: FontWeights.bold,
+                              clr: allReady ? AppColors.green : AppColors.grey,
+                            ),
+                          );
+                        })(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Expanded Content
+            if (isExpanded) ...[
+              const SizedBox(height: 12),
+              // Inventory Allocation Sub-Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGrey,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderClr.withValues(alpha:0.5)),
+                ),
                 child: Row(
-                  spacing: 8,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightBlue,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: TextWidget(
-                        text: "#${batch.batchNo}",
-                        fontSize: FontSizes.tiny,
-                        fontWeight: FontWeights.bold,
-                        clr: AppColors.blue,
-                      ),
-                    ),
-                    Flexible(
-                      child: TextWidget(
-                        text: batch.batchName ?? "Unnamed Batch",
-                        fontSize: FontSizes.large,
-                        fontWeight: FontWeights.bold,
-                        clr: AppColors.black,
+                    const Icon(Icons.layers_outlined, color: AppColors.blue, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontFamily: "Outfit",
+                            fontSize: FontSizes.small,
+                            color: AppColors.black,
+                          ),
+                          children: [
+                            const TextSpan(text: "Inventory Allocation  "),
+                            const TextSpan(
+                              text: "Batch Size:",
+                              style: TextStyle(color: AppColors.grey),
+                            ),
+                            TextSpan(
+                              text: "${batch.plannedQty}.00  ",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const TextSpan(
+                              text: "Status:",
+                              style: TextStyle(color: AppColors.grey),
+                            ),
+                            TextSpan(
+                              text: (batch.status ?? "PLANNED").toUpperCase(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              TextWidget(
-                text: "Qty: ${batch.plannedQty ?? 0}",
+              const SizedBox(height: 16),
+
+              // Divider
+              const Divider(color: AppColors.borderClr),
+              const SizedBox(height: 8),
+
+              // Components Staging Tracker Header
+              const TextWidget(
+                text: "Component Pipeline Tracking",
                 fontSize: FontSizes.small,
                 fontWeight: FontWeights.bold,
-                clr: AppColors.themeColor,
+                clr: AppColors.orange,
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Product Info
-          TextWidget(
-            text: "${batch.productName} (SKU: ${batch.sku})",
-            fontSize: FontSizes.small,
-            fontWeight: FontWeights.medium,
-            clr: AppColors.grey,
-          ),
-          const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
-          // Inventory Allocation Sub-Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.lightGrey,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.borderClr.withValues(alpha:0.5)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.layers_outlined, color: AppColors.blue, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontFamily: "Outfit",
-                        fontSize: FontSizes.small,
-                        color: AppColors.black,
-                      ),
-                      children: [
-                        const TextSpan(text: "Inventory Allocation  "),
-                        const TextSpan(
-                          text: "Batch Size:",
-                          style: TextStyle(color: AppColors.grey),
-                        ),
-                        TextSpan(
-                          text: "${batch.plannedQty}.00  ",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const TextSpan(
-                          text: "Status:",
-                          style: TextStyle(color: AppColors.grey),
-                        ),
-                        TextSpan(
-                          text: (batch.status ?? "PLANNED").toUpperCase(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
+              // Components List
+              if (batch.components != null)
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: batch.components!.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, idx) {
+                    final comp = batch.components![idx];
+                    bool allPrevCompleted = true;
+                    for (int i = 0; i < idx; i++) {
+                      if (batch.components![i].jobStatus != "completed") {
+                        allPrevCompleted = false;
+                        break;
+                      }
+                    }
+                    return _buildComponentTracker(context, comp, allPrevCompleted);
+                  },
+                ),
+
+              // Final Assemble Button
+              Obx(() {
+                final comps = batch.components ?? [];
+                final allComponentsReady = comps.isNotEmpty && comps.every((c) {
+                  final stagesList = c.pipelineStages ?? [];
+                  final lastStageId = stagesList.isNotEmpty
+                      ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
+                      : 0;
+                  return c.jobStatus == "completed" && (c.currentStageId ?? 0) == lastStageId;
+                });
+                if (batch.status == "completed") {
+                  return const SizedBox();
+                }
+
+                final controller = Get.find<BulkExecutionController>();
+                final isPrepared = controller.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
+
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    const Divider(color: AppColors.borderClr),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: allComponentsReady 
+                              ? (isPrepared ? AppColors.green : AppColors.orange) 
+                              : AppColors.lightGrey,
+                          foregroundColor: allComponentsReady ? AppColors.white : AppColors.grey,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: allComponentsReady ? Colors.transparent : AppColors.borderClr,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Divider
-          const Divider(color: AppColors.borderClr),
-          const SizedBox(height: 8),
-
-          // Components Staging Tracker Header
-          const TextWidget(
-            text: "Component Pipeline Tracking",
-            fontSize: FontSizes.small,
-            fontWeight: FontWeights.bold,
-            clr: AppColors.orange,
-          ),
-          const SizedBox(height: 8),
-
-          // Components List
-          if (batch.components != null)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: batch.components!.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, idx) {
-                final comp = batch.components![idx];
-                bool allPrevCompleted = true;
-                for (int i = 0; i < idx; i++) {
-                  if (batch.components![i].jobStatus != "completed") {
-                    allPrevCompleted = false;
-                    break;
-                  }
-                }
-                return _buildComponentTracker(context, comp, allPrevCompleted);
-              },
-            ),
-
-          // Final Assemble Button
-          Obx(() {
-            final comps = batch.components ?? [];
-            final allComponentsReady = comps.isNotEmpty && comps.every((c) {
-              final stagesList = c.pipelineStages ?? [];
-              final lastStageId = stagesList.isNotEmpty
-                  ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-                  : 0;
-              return c.jobStatus == "completed" && (c.currentStageId ?? 0) == lastStageId;
-            });
-            if (batch.status == "completed") {
-              return const SizedBox();
-            }
-
-            final controller = Get.find<BulkExecutionController>();
-            final isPrepared = controller.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
-
-            return Column(
-              children: [
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.borderClr),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: allComponentsReady 
-                          ? (isPrepared ? AppColors.green : AppColors.orange) 
-                          : AppColors.lightGrey,
-                      foregroundColor: allComponentsReady ? AppColors.white : AppColors.grey,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(
-                          color: allComponentsReady ? Colors.transparent : AppColors.borderClr,
+                        onPressed: allComponentsReady
+                            ? () {
+                                FocusScope.of(context).unfocus();
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                if (isPrepared) {
+                                  controller.assembleBatch(batch.batchId ?? 0);
+                                } else {
+                                  controller.prepareBatch(batch.batchId ?? 0);
+                                }
+                              }
+                            : null,
+                        icon: Icon(
+                          isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing,
+                          color: allComponentsReady ? AppColors.white : AppColors.grey,
+                          size: 20,
+                        ),
+                        label: Text(
+                          isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: FontSizes.mediuam,
+                          ),
                         ),
                       ),
                     ),
-                    onPressed: allComponentsReady
-                        ? () {
-                            if (isPrepared) {
-                              controller.assembleBatch(batch.batchId ?? 0);
-                            } else {
-                              controller.prepareBatch(batch.batchId ?? 0);
-                            }
-                          }
-                        : null,
-                    icon: Icon(
-                      isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing,
-                      color: allComponentsReady ? AppColors.white : AppColors.grey,
-                      size: 20,
-                    ),
-                    label: Text(
-                      isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: FontSizes.mediuam,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
+                  ],
+                );
+              }),
+            ],
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildComponentTracker(BuildContext context, ApiComponent c, bool allPrevCompleted) {
     // Calculate reserved count from stage allocations
-    double reserved = 0;
-    if (c.pipelineStages != null) {
-      for (var stage in c.pipelineStages!) {
-        reserved += (stage.reserved ?? 0);
-      }
-    }
+    // double reserved = 0;
+    // if (c.pipelineStages != null) {
+    //   for (var stage in c.pipelineStages!) {
+    //     reserved += (stage.reserved ?? 0);
+    //   }
+    // }
 
     // Calculate stage-wise progress: 25% per stage if 4 stages, 33.3% (approx 30%) if 3 stages, etc.
     final stagesList = c.pipelineStages ?? [];
@@ -458,140 +546,130 @@ class ApiBatchCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Operational Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const TextWidget(
-                text: "OPERATIONAL ACTIONS",
-                fontSize: FontSizes.tiny,
-                fontWeight: FontWeights.bold,
-                clr: AppColors.grey,
-              ),
-              Row(
-                spacing: 8,
-                children: [
-                  // Move (yellow button)
-                  if (c.isActionableForCurrentUser == true && !isFullyCompleted && allPrevCompleted)
-                    (() {
-                      final isNotStarted = c.jobStatus == "not_started";
-                      if (isNotStarted) {
-                        return InkWell(
-                          onTap: () {
-                            Get.dialog(
-                              Dialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                backgroundColor: AppColors.white,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.info_outline, color: AppColors.orange, size: 48),
-                                      const SizedBox(height: 16),
-                                      const TextWidget(
-                                        text: "Job Not Started",
-                                        fontSize: FontSizes.large,
-                                        fontWeight: FontWeights.bold,
-                                        clr: AppColors.black,
-                                      ),
-                                      const SizedBox(height: 12),
-                                      const TextWidget(
-                                        text: "Please ask the administrator to create a job for this component.",
-                                        fontSize: FontSizes.mediuam,
-                                        clr: AppColors.grey,
-                                        textAlign: TextAlign.center,
-                                        maxLine: 3,
-                                      ),
-                                      const SizedBox(height: 20),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.orange,
-                                            foregroundColor: AppColors.white,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
-                                            elevation: 0,
-                                          ),
-                                          onPressed: () => Get.back(),
-                                          child: const TextWidget(
-                                            text: "Okay",
-                                            fontWeight: FontWeights.bold,
-                                            clr: AppColors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+          if (c.isActionableForCurrentUser == true && !isFullyCompleted && allPrevCompleted)
+            (() {
+              final isNotStarted = c.jobStatus == "not_started";
+              if (isNotStarted) {
+                return InkWell(
+                  onTap: () {
+                    Get.dialog(
+                      Dialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        backgroundColor: AppColors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.info_outline, color: AppColors.orange, size: 48),
+                              const SizedBox(height: 16),
+                              const TextWidget(
+                                text: "Job Not Started",
+                                fontSize: FontSizes.large,
+                                fontWeight: FontWeights.bold,
+                                clr: AppColors.black,
+                              ),
+                              const SizedBox(height: 12),
+                              const TextWidget(
+                                text: "Please ask the administrator to create a job for this component.",
+                                fontSize: FontSizes.mediuam,
+                                clr: AppColors.grey,
+                                textAlign: TextAlign.center,
+                                maxLine: 3,
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.orange,
+                                    foregroundColor: AppColors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => Get.back(),
+                                  child: const TextWidget(
+                                    text: "Okay",
+                                    fontWeight: FontWeights.bold,
+                                    clr: AppColors.white,
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.lightGrey,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AppColors.borderClr),
-                            ),
-                            child: const Row(
-                              spacing: 4,
-                              children: [
-                                Icon(Icons.info_outline, color: AppColors.grey, size: 16),
-                                TextWidget(
-                                  text: "Move",
-                                  fontSize: FontSizes.tiny,
-                                  fontWeight: FontWeights.bold,
-                                  clr: AppColors.grey,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-
-                      return InkWell(
-                        onTap: () => _openMovementDialog(context, c),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.amber[100],
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.amber[300]!),
-                          ),
-                          child: const Row(
-                            spacing: 4,
-                            children: [
-                              Icon(Icons.sync_alt, color: Colors.orange, size: 16),
-                              TextWidget(
-                                text: "Move",
-                                fontSize: FontSizes.tiny,
-                                fontWeight: FontWeights.bold,
-                                clr: Colors.orange,
                               ),
                             ],
                           ),
                         ),
-                      );
-                    })()
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightGrey,
-                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: TextWidget(
-                        text: isFullyCompleted ? "Ready" : "Read-Only",
-                        fontSize: FontSizes.tiny,
-                        fontWeight: FontWeights.medium,
-                        clr: AppColors.grey,
-                      ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightGrey,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.borderClr),
                     ),
-                ],
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: 4,
+                      children: [
+                        Icon(Icons.info_outline, color: AppColors.grey, size: 16),
+                        TextWidget(
+                          text: "Move",
+                          fontSize: FontSizes.tiny,
+                          fontWeight: FontWeights.bold,
+                          clr: AppColors.grey,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return InkWell(
+                onTap: () => _openMovementDialog(context, c),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[100],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber[300]!),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: 4,
+                    children: [
+                      Icon(Icons.sync_alt, color: Colors.orange, size: 16),
+                      TextWidget(
+                        text: "Move",
+                        fontSize: FontSizes.tiny,
+                        fontWeight: FontWeights.bold,
+                        clr: Colors.orange,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            })()
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey,
+                borderRadius: BorderRadius.circular(6),
               ),
-            ],
-          ),
+              child: Center(
+                child: TextWidget(
+                  text: isFullyCompleted ? "Ready" : "Read-Only",
+                  fontSize: FontSizes.tiny,
+                  fontWeight: FontWeights.medium,
+                  clr: AppColors.grey,
+                ),
+              ),
+            ),
         ],
       ),
     );

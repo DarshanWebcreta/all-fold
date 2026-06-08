@@ -56,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const TextWidget(
-                        text: "Login to Terminal",
+                        text: "Login",
                         fontSize: FontSizes.large,
                         fontWeight: FontWeights.bold,
                         clr: AppColors.black,

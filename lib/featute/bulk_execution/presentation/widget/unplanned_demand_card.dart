@@ -50,6 +50,8 @@ class _UnplannedDemandCardState extends State<UnplannedDemandCard> {
   }
 
   void _showPlanDialog(BuildContext context) {
+    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     final controller = Get.find<BulkExecutionController>();
     final int qty = int.tryParse(qtyController.text) ?? 0;
     if (qty <= 0) {
@@ -160,6 +162,8 @@ class _UnplannedDemandCardState extends State<UnplannedDemandCard> {
                           FunctionalWidget.showSnackBar(title: "Batch name is required", success: false);
                           return;
                         }
+                        FocusScope.of(context).unfocus();
+                        FocusManager.instance.primaryFocus?.unfocus();
                         Get.back(); // close dialog
                         controller.planNewBatchFromUnplanned(
                           product: widget.product,

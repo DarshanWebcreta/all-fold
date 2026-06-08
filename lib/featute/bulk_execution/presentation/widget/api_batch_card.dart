@@ -527,26 +527,34 @@ class ApiBatchCard extends StatelessWidget {
             clr: AppColors.grey,
           ),
           const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: _buildStageBox(1, c)),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
-              ),
-              Expanded(child: _buildStageBox(2, c)),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
-              ),
-              Expanded(child: _buildStageBox(3, c)),
-            ],
-          ),
+          if (c.pipelineStages != null && c.pipelineStages!.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: () {
+                final List<Widget> children = [];
+                final stages = c.pipelineStages!;
+                for (int i = 0; i < stages.length; i++) {
+                  children.add(
+                    Expanded(
+                      child: _buildStageBox(stages[i], c),
+                    ),
+                  );
+                  if (i < stages.length - 1) {
+                    children.add(
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(Icons.arrow_forward, color: AppColors.borderClr, size: 14),
+                      ),
+                    );
+                  }
+                }
+                return children;
+              }(),
+            ),
           const SizedBox(height: 16),
 
           // Operational Actions
-          if (c.isActionableForCurrentUser == true && !isFullyCompleted && allPrevCompleted)
+          if (c.isActionableForCurrentUser == true && !isFullyCompleted )
             (() {
               final isNotStarted = c.jobStatus == "not_started";
               if (isNotStarted) {
@@ -675,9 +683,9 @@ class ApiBatchCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStageBox(int stageId, ApiComponent c) {
-    final stage = c.pipelineStages?.firstWhereOrNull((s) => s.stageId == stageId);
-    final reservedVal = stage?.reserved ?? 0;
+  Widget _buildStageBox(PipelineStage stage, ApiComponent c) {
+    final stageId = stage.stageId ?? 0;
+    final reservedVal = stage.reserved ?? 0;
     final isCurrentStage = c.currentStageId == stageId;
 
     Color stageColor;
@@ -688,9 +696,12 @@ class ApiBatchCard extends StatelessWidget {
     } else if (stageId == 2) {
       stageColor = Colors.blue[400]!;
       bgClr = Colors.blue[50]!;
-    } else {
+    } else if (stageId == 3) {
       stageColor = Colors.green[400]!;
       bgClr = Colors.green[50]!;
+    } else {
+      stageColor = Colors.purple[400]!;
+      bgClr = Colors.purple[50]!;
     }
 
     return Column(
@@ -711,7 +722,7 @@ class ApiBatchCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextWidget(
-                  text: stage?.stageName ?? "Stage $stageId",
+                  text: stage.stageName ?? "Stage $stageId",
                   fontSize: 10,
                   fontWeight: FontWeights.bold,
                   clr: stageColor,

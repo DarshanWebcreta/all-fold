@@ -125,12 +125,28 @@ class _BatchHistoryScreenState extends State<BatchHistoryScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          TextWidget(text: m.fromStage ?? "", fontSize: FontSizes.small, clr: AppColors.grey, fontWeight: FontWeights.medium),
+                          Expanded(
+                            child: TextWidget(
+                              text: m.fromStage ?? "",
+                              fontSize: FontSizes.small,
+                              clr: AppColors.grey,
+                              fontWeight: FontWeights.medium,
+                              maxLine: 2,
+                            ),
+                          ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 6.0),
                             child: Icon(Icons.arrow_forward, size: 12, color: AppColors.grey),
                           ),
-                          TextWidget(text: m.toStage ?? "", fontSize: FontSizes.small, clr: AppColors.themeColor, fontWeight: FontWeights.bold),
+                          Expanded(
+                            child: TextWidget(
+                              text: m.toStage ?? "",
+                              fontSize: FontSizes.small,
+                              clr: AppColors.themeColor,
+                              fontWeight: FontWeights.bold,
+                              maxLine: 2,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),

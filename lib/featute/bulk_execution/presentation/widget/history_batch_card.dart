@@ -67,34 +67,18 @@ class HistoryBatchCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Row(
-                spacing: 8,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.history, color: AppColors.orange, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: "Batch History Log",
-                    onPressed: () {
-                      if (batch.id != null) {
-                        Get.to(() => BatchHistoryScreen(batchId: batch.id!, batchNo: batch.batchNo ?? ""));
-                      }
-                    },
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusBgColor,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: TextWidget(
-                      text: (batch.status ?? "UNKNOWN").toUpperCase(),
-                      fontSize: FontSizes.tiny,
-                      fontWeight: FontWeights.bold,
-                      clr: statusColor,
-                    ),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusBgColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: TextWidget(
+                  text: (batch.status ?? "UNKNOWN").toUpperCase(),
+                  fontSize: FontSizes.tiny,
+                  fontWeight: FontWeights.bold,
+                  clr: statusColor,
+                ),
               ),
             ],
           ),
@@ -119,7 +103,7 @@ class HistoryBatchCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const TextWidget(
-                    text: "PLANNED QTY",
+                    text: "Planned Quantity",
                     fontSize: FontSizes.tiny,
                     fontWeight: FontWeights.medium,
                     clr: AppColors.grey,
@@ -152,6 +136,29 @@ class HistoryBatchCard extends StatelessWidget {
                 ],
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.orange,
+                side: const BorderSide(color: AppColors.orange),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                if (batch.id != null) {
+                  Get.to(() => BatchHistoryScreen(batchId: batch.id!, batchNo: batch.batchNo ?? ""));
+                }
+              },
+              child: const TextWidget(
+                text: "View Movement Logs",
+                fontSize: FontSizes.mediuam,
+                fontWeight: FontWeights.bold,
+                clr: AppColors.orange,
+              ),
+            ),
           ),
         ],
       ),

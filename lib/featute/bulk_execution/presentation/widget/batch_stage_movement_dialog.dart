@@ -43,48 +43,57 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
         ? currentId 
         : (activeStagesWithQty.isNotEmpty ? activeStagesWithQty.first.stageId : currentId);
 
-    final isCompleted = c.jobStatus == "completed";
-
     final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    
+    final pendingQty = sourceStage?.pending ?? 0.0;
+    final completedQty = sourceStage?.completed ?? 0.0;
+    final hasNewFields = (sourceStage?.completed != null || sourceStage?.pending != null);
+
+    // Determine default movementType
+    if (hasNewFields) {
+      if (pendingQty > 0.0 && completedQty == 0.0) {
+        movementType = "Complete";
+      } else if (completedQty > 0.0 && pendingQty == 0.0) {
+        movementType = "Transfer";
+      } else {
+        // Both > 0 or both == 0: default to Complete
+        movementType = "Complete";
+      }
+    } else {
+      // Old fallback logic
+      final isCompleted = c.jobStatus == "completed";
+      final hasReservedQty = activeStagesWithQty.isNotEmpty;
+      bool hasTransferredToNext = false;
+      if (sourceStageId != null && sourceStageId! > 0) {
+        hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
+      }
+      if (!hasReservedQty) {
+        movementType = "Complete";
+      } else {
+        if (isCompleted || hasTransferredToNext) {
+          movementType = "Transfer";
+        } else {
+          movementType = "Complete";
+        }
+      }
+    }
+
+    // Determine targetStageId
+    if (movementType == "Complete") {
+      targetStageId = sourceStageId;
+    } else {
+      targetStageId = c.nextStageId ?? (sourceStageId != null ? sourceStageId! + 1 : null);
+    }
+
     final hasReservedQty = activeStagesWithQty.isNotEmpty;
-    final defaultQty = !hasReservedQty 
-        ? (c.totalNeeded ?? 0).toDouble() 
-        : (sourceStage?.reserved ?? 0.0);
+    final defaultQty = hasNewFields
+        ? (movementType == "Complete" ? pendingQty : completedQty)
+        : (!hasReservedQty 
+            ? (c.totalNeeded ?? 0).toDouble() 
+            : (sourceStage?.reserved ?? 0.0));
 
     qtyController = TextEditingController(text: defaultQty.toString());
     remarksController = TextEditingController();
-
-    // Check if any stage after sourceStageId has reserved > 0
-    bool hasTransferredToNext = false;
-    if (sourceStageId != null && sourceStageId! > 0) {
-      hasTransferredToNext = stages.any((s) => (s.stageId ?? 0) > sourceStageId! && (s.reserved ?? 0) > 0);
-    }
-
-    // 1. Determine movementType
-    if (!hasReservedQty) {
-      movementType = "Complete";
-    } else {
-      if (isCompleted || hasTransferredToNext) {
-        movementType = "Transfer";
-      } else {
-        movementType = "Complete";
-      }
-    }
-
-    // 2. Determine targetStageId
-    if (!hasReservedQty) {
-      final hasStage1 = stages.any((s) => s.stageId == 1);
-      targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
-    } else {
-      if (isCompleted || hasTransferredToNext) {
-        final nextStageId = sourceStageId! + 1;
-        final hasNextStage = stages.any((s) => s.stageId == nextStageId);
-        targetStageId = hasNextStage ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
-      } else {
-        final hasCurrent = stages.any((s) => s.stageId == sourceStageId);
-        targetStageId = hasCurrent ? sourceStageId : (stages.isNotEmpty ? stages.first.stageId : null);
-      }
-    }
   }
 
   @override
@@ -109,11 +118,20 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
 
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
-    final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
-    final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-    final maxAvailable = !hasReservedQty 
-        ? (c.totalNeeded ?? 0).toDouble() 
-        : (currentStage?.reserved ?? 0.0);
+    final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    final pendingQty = sourceStage?.pending ?? 0.0;
+    final completedQty = sourceStage?.completed ?? 0.0;
+    final hasNewFields = (sourceStage?.completed != null || sourceStage?.pending != null);
+
+    final double maxAvailable;
+    if (hasNewFields) {
+      maxAvailable = movementType == "Complete" ? pendingQty : completedQty;
+    } else {
+      final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
+      maxAvailable = !hasReservedQty 
+          ? (c.totalNeeded ?? 0).toDouble() 
+          : (sourceStage?.reserved ?? 0.0);
+    }
 
     if (qty > maxAvailable) {
       FunctionalWidget.showSnackBar(
@@ -133,7 +151,8 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
       batchId: widget.batchId,
       componentId: widget.component.componentId ?? 0,
       quantity: qty,
-      toWarehouseId: targetStageId,
+      toWarehouseId: movementType == "Complete" ? null : targetStageId,
+      movementType: movementType,
       remarks: remarks.isEmpty ? "Marking component job as $movementType" : remarks,
     );
   }
@@ -142,12 +161,20 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
   Widget build(BuildContext context) {
     final c = widget.component;
     final stages = c.pipelineStages ?? [];
-    
-    final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
-    final currentStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
-    final maxAvailable = !hasReservedQty 
-        ? (c.totalNeeded ?? 0).toDouble() 
-        : (currentStage?.reserved ?? 0.0);
+    final sourceStage = stages.firstWhereOrNull((s) => s.stageId == sourceStageId);
+    final pendingQty = sourceStage?.pending ?? 0.0;
+    final completedQty = sourceStage?.completed ?? 0.0;
+    final hasNewFields = (sourceStage?.completed != null || sourceStage?.pending != null);
+
+    final double maxAvailable;
+    if (hasNewFields) {
+      maxAvailable = movementType == "Complete" ? pendingQty : completedQty;
+    } else {
+      final hasReservedQty = stages.any((s) => (s.reserved ?? 0.0) > 0.0);
+      maxAvailable = !hasReservedQty 
+          ? (c.totalNeeded ?? 0).toDouble() 
+          : (sourceStage?.reserved ?? 0.0);
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -310,7 +337,9 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                 ),
                               ),
                               TextWidget(
-                                text: "To complete: $maxAvailable",
+                                text: movementType == "Complete"
+                                    ? "To complete: $maxAvailable"
+                                    : "To transfer: $maxAvailable",
                                 fontSize: FontSizes.tiny,
                                 fontWeight: FontWeights.bold,
                                 clr: AppColors.orange,
@@ -321,8 +350,10 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const TextWidget(
-                      text: "Complete qty at this stage first. Transfer on the next action.",
+                    TextWidget(
+                      text: movementType == "Complete"
+                          ? "Complete qty at this stage first. Transfer on the next action."
+                          : "Qty completed. Transfer to the next stage.",
                       fontSize: FontSizes.tiny,
                       fontWeight: FontWeights.medium,
                       clr: AppColors.grey,
@@ -357,8 +388,34 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                     clr: AppColors.grey,
                   ),
                 )
-              else
-                DropdownButtonFormField<int>(
+              else (() {
+                final dropdownItems = <DropdownMenuItem<int>>[];
+                for (var s in stages) {
+                  if (s.stageId != null && s.stageId != 0) {
+                    dropdownItems.add(
+                      DropdownMenuItem<int>(
+                        value: s.stageId!,
+                        child: TextWidget(text: "${s.stageId}. ${s.stageName}"),
+                      ),
+                    );
+                  }
+                }
+                if (targetStageId != null && !dropdownItems.any((item) => item.value == targetStageId)) {
+                  String stageLabel = "Stage $targetStageId";
+                  if (targetStageId == c.currentStageId) {
+                    stageLabel = c.currentStageLabel ?? "Current Stage";
+                  } else if (targetStageId == c.nextStageId) {
+                    stageLabel = c.nextStageLabel ?? "Next Stage";
+                  }
+                  dropdownItems.add(
+                    DropdownMenuItem<int>(
+                      value: targetStageId!,
+                      child: TextWidget(text: stageLabel.startsWith(RegExp(r'^\d+')) ? stageLabel : "$targetStageId. $stageLabel"),
+                    ),
+                  );
+                }
+
+                return DropdownButtonFormField<int>(
                   value: targetStageId,
                   hint: const TextWidget(
                     text: "Select Target Stage",
@@ -377,20 +434,10 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                     ),
                   ),
                   dropdownColor: AppColors.white,
-                  onChanged: (val) {
-                    setState(() {
-                      targetStageId = val;
-                    });
-                  },
-                  items: stages
-                      .where((s) => s.stageId != null && s.stageId != 0)
-                      .map((stage) {
-                        return DropdownMenuItem<int>(
-                          value: stage.stageId!,
-                          child: TextWidget(text: "${stage.stageId}. ${stage.stageName}"),
-                        );
-                      }).toList(),
-                ),
+                  onChanged: null,
+                  items: dropdownItems,
+                );
+              })(),
               const SizedBox(height: 16),
 
               // Movement Type & Qty to Move
@@ -407,61 +454,57 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                           fontWeight: FontWeights.bold,
                           clr: AppColors.black,
                         ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          value: movementType,
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: AppColors.borderClr),
-                              borderRadius: BorderRadius.circular(8),
+                         const SizedBox(height: 6),
+                        (() {
+                          final showComplete = hasNewFields
+                              ? (pendingQty > 0.0 || (pendingQty == 0.0 && completedQty == 0.0))
+                              : true;
+                          final showTransfer = hasNewFields
+                              ? (completedQty > 0.0)
+                              : true;
+
+                          final menuItems = <DropdownMenuItem<String>>[];
+                          if (showComplete) {
+                            menuItems.add(const DropdownMenuItem(value: "Complete", child: TextWidget(text: "Complete")));
+                          }
+                          if (showTransfer) {
+                            menuItems.add(const DropdownMenuItem(value: "Transfer", child: TextWidget(text: "Transfer")));
+                          }
+                          final canChangeMovement = hasNewFields && pendingQty > 0.0 && completedQty > 0.0;
+
+                          return DropdownButtonFormField<String>(
+                            value: movementType,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(color: AppColors.borderClr),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(color: AppColors.blue),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: AppColors.blue),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          dropdownColor: AppColors.white,
-                          // {
-                          //       "component_id": 3,
-                          //       "component_name": "CR STRIP 118 * 0.60",
-                          //       "qty_per_pc": 1,
-                          //       "total_needed": 90,
-                          //       "current_stage_id": 1,
-                          //       "current_stage_label": "1. PLANT-1 SUPERVISOR",
-                          //       "is_actionable_for_current_user": true,
-                          //       "job_status": "not_started",
-                          //       "pipeline_stages": [
-                          //        {stage_id: 1, stage_name: 1. PLANT-1 SUPERVISOR, stock: 0, reserved: 0},
-                          //        {stage_id: 2, stage_name: 2. PLANT-2 SUPERVISOR, stock: 0, reserved: 0},
-                          //        {stage_id: 3, stage_name: 3. PLANT-3 ASSEMBLY SUPERVISOR, stock: 0, reserved: 0}
-                          //       ]
-                          //  },
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                movementType = val;
-                                if (movementType == "Complete") {
-                                  if (!hasReservedQty) {
-                                    final hasStage1 = stages.any((s) => s.stageId == 1);
-                                    targetStageId = hasStage1 ? 1 : (stages.isNotEmpty ? stages.first.stageId : null);
-                                  } else {
-                                    final hasCurrent = stages.any((s) => s.stageId == sourceStageId);
-                                    targetStageId = hasCurrent ? sourceStageId : (stages.isNotEmpty ? stages.first.stageId : null);
+                            dropdownColor: AppColors.white,
+                            onChanged: canChangeMovement
+                                ? (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        movementType = val;
+                                        if (movementType == "Complete") {
+                                          targetStageId = sourceStageId;
+                                          qtyController.text = pendingQty.toString();
+                                        } else {
+                                          targetStageId = c.nextStageId ?? (sourceStageId != null ? sourceStageId! + 1 : null);
+                                          qtyController.text = completedQty.toString();
+                                        }
+                                      });
+                                    }
                                   }
-                                } else {
-                                  final nextStageId = !hasReservedQty ? 2 : (sourceStageId! + 1);
-                                  final hasNext = stages.any((s) => s.stageId == nextStageId);
-                                  targetStageId = hasNext ? nextStageId : (stages.isNotEmpty ? stages.first.stageId : null);
-                                }
-                              });
-                            }
-                          },
-                          items: const [
-                            DropdownMenuItem(value: "Complete", child: TextWidget(text: "Complete")),
-                            DropdownMenuItem(value: "Transfer", child: TextWidget(text: "Transfer")),
-                          ],
-                        ),
+                                : null,
+                            items: menuItems,
+                          );
+                        })(),
                       ],
                     ),
                   ),

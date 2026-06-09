@@ -548,12 +548,14 @@ class BulkExecutionController extends GetxController {
             totalNeeded: (comp.qtyPerPc ?? 1) * quantity,
             currentStageId: 1,
             currentStageLabel: "PLANT-1 SUPERVISOR",
+            nextStageId: 2,
+            nextStageLabel: "PLANT-2 SUPERVISOR",
             isActionableForCurrentUser: true,
             jobStatus: "pending",
             pipelineStages: [
-              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: (comp.stageStock?["1"] ?? 0.0).toDouble(), reserved: ((comp.qtyPerPc ?? 1) * quantity).toDouble()),
-              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: (comp.stageStock?["2"] ?? 0.0).toDouble(), reserved: 0.0),
-              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: (comp.stageStock?["3"] ?? 0.0).toDouble(), reserved: 0.0),
+              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: (comp.stageStock?["1"] ?? 0.0).toDouble(), reserved: ((comp.qtyPerPc ?? 1) * quantity).toDouble(), completed: 0.0, pending: ((comp.qtyPerPc ?? 1) * quantity).toDouble()),
+              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: (comp.stageStock?["2"] ?? 0.0).toDouble(), reserved: 0.0, completed: 0.0, pending: 0.0),
+              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: (comp.stageStock?["3"] ?? 0.0).toDouble(), reserved: 0.0, completed: 0.0, pending: 0.0),
             ],
           ),
         );
@@ -640,12 +642,14 @@ class BulkExecutionController extends GetxController {
             totalNeeded: 100,
             currentStageId: 2,
             currentStageLabel: "Stage 2 Warehouse (WIP)",
+            nextStageId: 3,
+            nextStageLabel: "Stage 3 Assembly & Finished",
             isActionableForCurrentUser: true,
             jobStatus: "pending",
             pipelineStages: [
-              PipelineStage(stageId: 1, stageName: "Stage 1 Raw Prep", stock: 400.0, reserved: 0.0),
-              PipelineStage(stageId: 2, stageName: "Stage 2 Welding & WIP", stock: 150.0, reserved: 100.0),
-              PipelineStage(stageId: 3, stageName: "Stage 3 Assembly & Finished", stock: 0.0, reserved: 0.0),
+              PipelineStage(stageId: 1, stageName: "Stage 1 Raw Prep", stock: 400.0, reserved: 0.0, completed: 0.0, pending: 0.0),
+              PipelineStage(stageId: 2, stageName: "Stage 2 Welding & WIP", stock: 150.0, reserved: 100.0, completed: 40.0, pending: 60.0),
+              PipelineStage(stageId: 3, stageName: "Stage 3 Assembly & Finished", stock: 0.0, reserved: 0.0, completed: 0.0, pending: 0.0),
             ],
           ),
         ],
@@ -668,12 +672,14 @@ class BulkExecutionController extends GetxController {
             totalNeeded: 100,
             currentStageId: 1,
             currentStageLabel: "PLANT-1 SUPERVISOR",
+            nextStageId: 2,
+            nextStageLabel: "PLANT-2 SUPERVISOR",
             isActionableForCurrentUser: true,
             jobStatus: "pending",
             pipelineStages: [
-              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: 100.0, reserved: 100.0),
-              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: 0.0, reserved: 0.0),
-              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: 0.0, reserved: 0.0),
+              PipelineStage(stageId: 1, stageName: "PLANT-1 SUPERVISOR", stock: 100.0, reserved: 100.0, completed: 0.0, pending: 100.0),
+              PipelineStage(stageId: 2, stageName: "PLANT-2 SUPERVISOR", stock: 0.0, reserved: 0.0, completed: 0.0, pending: 0.0),
+              PipelineStage(stageId: 3, stageName: "PLANT-3 ASSEMBLY SUPERVISOR", stock: 0.0, reserved: 0.0, completed: 0.0, pending: 0.0),
             ],
           ),
         ],
@@ -686,6 +692,7 @@ class BulkExecutionController extends GetxController {
     required int componentId,
     required double quantity,
     required int? toWarehouseId,
+    required String movementType,
     String? remarks,
   }) async {
     lastOperatedBatchId.value = batchId;
@@ -698,6 +705,7 @@ class BulkExecutionController extends GetxController {
         "component_id": componentId,
         "quantity": quantity,
         "to_warehouse_id": toWarehouseId,
+        "movement_type": movementType.toLowerCase(),
         "remarks": remarks ?? "",
       });
       
@@ -750,9 +758,21 @@ class BulkExecutionController extends GetxController {
 
     final comp = batch.components![compIndex];
 
-    if (toWarehouseId == null) {
+    if (toWarehouseId == null || toWarehouseId == comp.currentStageId) {
       // Mark as completed
       comp.jobStatus = "completed";
+      
+      // Update pending/completed values in pipelineStages
+      if (comp.pipelineStages != null) {
+        final currentStage = comp.pipelineStages!.firstWhereOrNull((s) => s.stageId == comp.currentStageId);
+        if (currentStage != null) {
+          double moveQty = quantity;
+          currentStage.pending = (currentStage.pending ?? 0.0) - moveQty;
+          if (currentStage.pending! < 0.0) currentStage.pending = 0.0;
+          currentStage.completed = (currentStage.completed ?? 0.0) + moveQty;
+        }
+      }
+
       FunctionalWidget.showSnackBar(
         title: "Component job completed at this stage. (Simulated)",
         success: true,
@@ -766,14 +786,54 @@ class BulkExecutionController extends GetxController {
           : toWarehouseId == 2 
               ? "PLANT-2 SUPERVISOR" 
               : "PLANT-3 ASSEMBLY SUPERVISOR";
+      comp.nextStageId = toWarehouseId == 1
+          ? 2
+          : toWarehouseId == 2
+              ? 3
+              : null;
+      comp.nextStageLabel = toWarehouseId == 1
+          ? "PLANT-2 SUPERVISOR"
+          : toWarehouseId == 2
+              ? "PLANT-3 ASSEMBLY SUPERVISOR"
+              : null;
+      comp.jobStatus = "processing"; // Reset to processing for the next stage
 
-      // Move stock values in pipelineStages
+      // Move stock, reserved, pending, completed values in pipelineStages
       if (comp.pipelineStages != null) {
-        final currentStage = comp.pipelineStages!.firstWhereOrNull((s) => s.stageId == currentStageId);
-        final targetStage = comp.pipelineStages!.firstWhereOrNull((s) => s.stageId == toWarehouseId);
+        var currentStage = comp.pipelineStages!.firstWhereOrNull((s) => s.stageId == currentStageId);
+        var targetStage = comp.pipelineStages!.firstWhereOrNull((s) => s.stageId == toWarehouseId);
 
-        if (currentStage != null && targetStage != null) {
-          int moveQty = quantity.toInt();
+        if (currentStage != null) {
+          double moveQty = quantity;
+
+          // If targetStage doesn't exist, create and insert it
+          if (targetStage == null) {
+            targetStage = PipelineStage(
+              stageId: toWarehouseId,
+              stageName: toWarehouseId == 1 
+                  ? "1. PLANT-1 SUPERVISOR" 
+                  : toWarehouseId == 2 
+                      ? "2. PLANT-2 SUPERVISOR" 
+                      : "3. PLANT-3 ASSEMBLY SUPERVISOR",
+              stock: 0.0,
+              reserved: 0.0,
+              completed: 0.0,
+              pending: 0.0,
+            );
+            comp.pipelineStages!.add(targetStage);
+          }
+
+          // Move reserved qty
+          currentStage.reserved = (currentStage.reserved ?? 0.0) - moveQty;
+          if (currentStage.reserved! < 0.0) currentStage.reserved = 0.0;
+          targetStage.reserved = (targetStage.reserved ?? 0.0) + moveQty;
+
+          // Move completed qty to next stage's pending qty
+          currentStage.completed = (currentStage.completed ?? 0.0) - moveQty;
+          if (currentStage.completed! < 0.0) currentStage.completed = 0.0;
+          targetStage.pending = (targetStage.pending ?? 0.0) + moveQty;
+
+          // Move stock qty
           currentStage.stock = (currentStage.stock ?? 0.0) - moveQty;
           if (currentStage.stock! < 0.0) currentStage.stock = 0.0;
           targetStage.stock = (targetStage.stock ?? 0.0) + moveQty;

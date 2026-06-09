@@ -113,6 +113,8 @@ class ApiComponent {
   int? totalNeeded;
   int? currentStageId;
   String? currentStageLabel;
+  int? nextStageId;
+  String? nextStageLabel;
   bool? isActionableForCurrentUser;
   String? jobStatus;
   List<PipelineStage>? pipelineStages;
@@ -124,6 +126,8 @@ class ApiComponent {
     this.totalNeeded,
     this.currentStageId,
     this.currentStageLabel,
+    this.nextStageId,
+    this.nextStageLabel,
     this.isActionableForCurrentUser,
     this.jobStatus,
     this.pipelineStages,
@@ -136,6 +140,8 @@ class ApiComponent {
     totalNeeded = json['total_needed'];
     currentStageId = json['current_stage_id'];
     currentStageLabel = json['current_stage_label'];
+    nextStageId = json['next_stage_id'];
+    nextStageLabel = json['next_stage_label'];
     isActionableForCurrentUser = json['is_actionable_for_current_user'];
     jobStatus = json['job_status'];
     if (json['pipeline_stages'] != null) {
@@ -154,6 +160,8 @@ class ApiComponent {
     data['total_needed'] = totalNeeded;
     data['current_stage_id'] = currentStageId;
     data['current_stage_label'] = currentStageLabel;
+    data['next_stage_id'] = nextStageId;
+    data['next_stage_label'] = nextStageLabel;
     data['is_actionable_for_current_user'] = isActionableForCurrentUser;
     data['job_status'] = jobStatus;
     if (pipelineStages != null) {
@@ -168,14 +176,18 @@ class PipelineStage {
   String? stageName;
   double? stock;
   double? reserved;
+  double? completed;
+  double? pending;
 
-  PipelineStage({this.stageId, this.stageName, this.stock, this.reserved});
+  PipelineStage({this.stageId, this.stageName, this.stock, this.reserved, this.completed, this.pending});
 
   PipelineStage.fromJson(Map<String, dynamic> json) {
     stageId = json['stage_id'];
     stageName = json['stage_name'];
     stock = (json['stock'] as num?)?.toDouble();
     reserved = (json['reserved'] as num?)?.toDouble();
+    completed = (json['completed'] as num?)?.toDouble();
+    pending = (json['pending'] as num?)?.toDouble();
   }
 
   Map<String, dynamic> toJson() {
@@ -184,6 +196,8 @@ class PipelineStage {
     data['stage_name'] = stageName;
     data['stock'] = stock;
     data['reserved'] = reserved;
+    data['completed'] = completed;
+    data['pending'] = pending;
     return data;
   }
 }

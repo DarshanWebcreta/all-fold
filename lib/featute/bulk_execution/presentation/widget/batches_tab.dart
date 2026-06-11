@@ -89,12 +89,7 @@ class _BatchesTabState extends State<BatchesTab> {
               if (compIndex != -1) {
                 final comp = comps[compIndex];
                 // Check if this component is now fully completed
-                final stagesList = comp.pipelineStages ?? [];
-                final lastStageId = stagesList.isNotEmpty
-                    ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-                    : 0;
-                final isJobCompleted = comp.jobStatus == "completed";
-                final isFullyCompleted = isJobCompleted && (comp.currentStageId ?? 0) == lastStageId;
+                final isFullyCompleted = comp.isFullyCompleted;
 
                 // If fully completed and there is a next component, target the next component
                 if (isFullyCompleted && compIndex + 1 < comps.length) {

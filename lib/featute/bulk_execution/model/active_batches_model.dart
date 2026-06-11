@@ -169,6 +169,25 @@ class ApiComponent {
     }
     return data;
   }
+
+  bool get isFullyCompleted {
+    final isJobCompleted = jobStatus == "completed";
+    final stagesList = pipelineStages ?? [];
+    final lastStageId = stagesList.isNotEmpty
+        ? stagesList.map((s) => s.stageId ?? 0).reduce((a, b) => a > b ? a : b)
+        : 0;
+
+    final currentStageIndex = stagesList.indexWhere((s) => s.stageId == currentStageId);
+    final currentStagePending = currentStageIndex != -1 
+        ? (stagesList[currentStageIndex].pending ?? 0.0) 
+        : 0.0;
+
+    if (nextStageId == null && nextStageLabel == null) {
+      return isJobCompleted && currentStagePending <= 0;
+    } else {
+      return isJobCompleted && (currentStageId ?? 0) == lastStageId;
+    }
+  }
 }
 
 class PipelineStage {

@@ -245,11 +245,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                         // Status Badge
                         (() {
                           final status = c.jobStatus ?? "not_started";
-                          final stagesList = c.pipelineStages ?? [];
-                          final lastStageId = stagesList.isNotEmpty
-                              ? stagesList.map((s) => s.stageId ?? 0).reduce((max, val) => val > max ? val : max)
-                              : 0;
-                          final isFullyCompleted = status == "completed" && (c.currentStageId ?? 0) == lastStageId;
+                           final isFullyCompleted = c.isFullyCompleted;
 
                           Color bg;
                           Color textClr;

@@ -32,11 +32,7 @@ class ApiBatchComponentTracker extends StatelessWidget {
     final stagesList = c.pipelineStages ?? [];
     final totalStages = stagesList.length;
     final currentStageId = c.currentStageId ?? 0;
-    final isJobCompleted = c.jobStatus == "completed";
-    final lastStageId = stagesList.isNotEmpty
-        ? stagesList.map((s) => s.stageId ?? 0).reduce((a, b) => a > b ? a : b)
-        : 0;
-    final isFullyCompleted = isJobCompleted && currentStageId == lastStageId;
+    final isFullyCompleted = c.isFullyCompleted;
     final currentStageIndex = stagesList.indexWhere((s) => s.stageId == currentStageId);
 
     // Status badge

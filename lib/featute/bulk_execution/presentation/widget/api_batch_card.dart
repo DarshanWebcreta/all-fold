@@ -37,11 +37,7 @@ class ApiBatchCard extends StatelessWidget {
 
       // Ready summary for collapsed view
       final comps = batch.components ?? [];
-      final readyCount = comps.where((c) {
-        final s = c.pipelineStages ?? [];
-        final last = s.isNotEmpty ? s.map((x) => x.stageId ?? 0).reduce((a, b) => a > b ? a : b) : 0;
-        return c.jobStatus == "completed" && (c.currentStageId ?? 0) == last;
-      }).length;
+      final readyCount = comps.where((c) => c.isFullyCompleted).length;
 
       return CardWidget(
         verticalPadding: 12,
@@ -158,11 +154,7 @@ class ApiBatchCard extends StatelessWidget {
               // ── Assemble button ────────────────────────────────────────
               if (batch.status != "completed")
                 Obx(() {
-                  final allReady = comps.isNotEmpty && comps.every((c) {
-                    final s = c.pipelineStages ?? [];
-                    final last = s.isNotEmpty ? s.map((x) => x.stageId ?? 0).reduce((a, b) => a > b ? a : b) : 0;
-                    return c.jobStatus == "completed" && (c.currentStageId ?? 0) == last;
-                  });
+                  final allReady = comps.isNotEmpty && comps.every((c) => c.isFullyCompleted);
                   final ctrl = Get.find<BulkExecutionController>();
                   final isPrepared = ctrl.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
                   return Column(

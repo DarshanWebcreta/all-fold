@@ -29,7 +29,17 @@ class ApiBatchComponentTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = component;
-    final stagesList = c.pipelineStages ?? [];
+    final stagesList = List<PipelineStage>.from(c.pipelineStages ?? []);
+    if (c.nextStageId != null && !stagesList.any((s) => s.stageId == c.nextStageId)) {
+      stagesList.add(PipelineStage(
+        stageId: c.nextStageId,
+        stageName: c.nextStageLabel ?? "Stage ${c.nextStageId}",
+        stock: 0,
+        reserved: 0,
+        completed: 0,
+        pending: 0,
+      ));
+    }
     final totalStages = stagesList.length;
     final currentStageId = c.currentStageId ?? 0;
     final isFullyCompleted = c.isFullyCompleted;
@@ -97,7 +107,7 @@ class ApiBatchComponentTracker extends StatelessWidget {
 
           // ── Qty info ──────────────────────────────────────────────────
           TextWidget(
-            text: "Qty: ${c.totalNeeded ?? 0}  ·  ${c.qtyPerPc ?? 1}/unit",
+            text: "Qty: ${c.totalNeeded != null && c.totalNeeded! % 1 == 0 ? c.totalNeeded!.toInt() : c.totalNeeded ?? 0}  ·  ${c.qtyPerPc != null && c.qtyPerPc! % 1 == 0 ? c.qtyPerPc!.toInt() : c.qtyPerPc ?? 1}/unit",
             fontSize: FontSizes.small,
             fontWeight: FontWeights.medium,
             clr: AppColors.grey,

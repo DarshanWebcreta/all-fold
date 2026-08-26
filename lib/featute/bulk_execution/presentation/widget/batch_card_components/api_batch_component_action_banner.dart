@@ -87,6 +87,9 @@ class ApiBatchComponentActionBanner extends StatelessWidget {
         );
       }
 
+      final bool hasNext = component.nextStageId != null;
+      final String buttonText = hasNext ? "Transfer to Next Stage" : "Move to Next Stage";
+
       return GestureDetector(
         onTap: onMoveTap,
         child: Container(
@@ -96,12 +99,12 @@ class ApiBatchComponentActionBanner extends StatelessWidget {
             color: AppColors.themeColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.sync_alt, color: AppColors.white, size: 18),
-              SizedBox(width: 6),
-              TextWidget(text: "Move to Next Stage", fontSize: FontSizes.mediuam, fontWeight: FontWeights.bold, clr: AppColors.white),
+              const Icon(Icons.sync_alt, color: AppColors.white, size: 18),
+              const SizedBox(width: 6),
+              TextWidget(text: buttonText, fontSize: FontSizes.mediuam, fontWeight: FontWeights.bold, clr: AppColors.white),
             ],
           ),
         ),

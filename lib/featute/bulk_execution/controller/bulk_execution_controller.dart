@@ -903,15 +903,19 @@ class BulkExecutionController extends GetxController {
     );
   }
 
-  Future<void> assembleBatch(int batchId) async {
+  Future<void> assembleBatch({required int batchId, num? quantity}) async {
     lastOperatedBatchId.value = batchId;
     lastOperatedComponentId.value = null;
     FunctionalWidget.loaderHideShow(loaderShow: true);
     try {
       final apiService = getIt<ApiService>();
-      final response = await apiService.assembleBatch({
+      final Map<String, dynamic> body = {
         "batch_id": batchId,
-      });
+      };
+      if (quantity != null) {
+        body["quantity"] = quantity;
+      }
+      final response = await apiService.assembleBatch(body);
       
       if (response is Map) {
         final bool isSuccess = response['success'] ?? true;

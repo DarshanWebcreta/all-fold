@@ -9,6 +9,7 @@ import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart'
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/batch_history_screen.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/batch_card_components/api_batch_component_tracker.dart';
+import 'package:all_fold/featute/bulk_execution/presentation/widget/assemble_batch_dialog.dart';
 
 class ApiBatchCard extends StatelessWidget {
   final ApiBatch batch;
@@ -121,27 +122,70 @@ class ApiBatchCard extends StatelessWidget {
               const Divider(color: AppColors.borderClr, height: 1),
               const SizedBox(height: 10),
 
-              // Batch summary stats — 3 pill chips in a row
+              // Batch stats row
+              (() {
+                String formatNum(num? val) {
+                  if (val == null) return "0";
+                  if (val % 1 == 0) return val.toInt().toString();
+                  return val.toString();
+                }
+
+                final num remainingQty = batch.remainingQty ?? (batch.assembledQty != null && batch.plannedQty != null ? (batch.plannedQty! - batch.assembledQty!) : batch.plannedQty) ?? 0;
+                final num assembledQty = batch.assembledQty ?? 0;
+
+                return Row(
+                  children: [
+                    Expanded(child: _statChip("PLANNED", formatNum(batch.plannedQty), AppColors.lightBlue, AppColors.blue)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _statChip("ASSEMBLED", formatNum(assembledQty), const Color(0xFFE8F5E9), AppColors.green)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _statChip("REMAINING", formatNum(remainingQty), const Color(0xFFFFF3E0), AppColors.orange)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _statChip("COMPS", "${comps.length}", AppColors.lightGrey, AppColors.grey)),
+                  ],
+                );
+              })(),
+              const SizedBox(height: 14),
+
+              // Section header
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _statChip("Batch Size", "${batch.plannedQty ?? 0}", AppColors.lightBlue, AppColors.blue),
-                  const SizedBox(width: 8),
-                  _statChip("Components", "${comps.length}", AppColors.lightGrey, AppColors.grey),
-                  const SizedBox(width: 8),
-                  _statChip("Ready", "$readyCount / ${comps.length}",
-                      readyCount == comps.length ? AppColors.lightGreen : AppColors.lightGrey,
-                      readyCount == comps.length ? AppColors.green : AppColors.grey),
+                  const TextWidget(
+                    text: "COMPONENT STAGES",
+                    fontSize: FontSizes.tiny,
+                    fontWeight: FontWeights.bold,
+                    clr: AppColors.grey,
+                  ),
+                  TextWidget(
+                    text: "$readyCount of ${comps.length} Ready",
+                    fontSize: FontSizes.tiny,
+                    fontWeight: FontWeights.bold,
+                    clr: readyCount == comps.length && comps.isNotEmpty ? AppColors.green : AppColors.grey,
+                  ),
                 ],
               ),
+              const SizedBox(height: 8),
 
-              if (comps.isNotEmpty) ...[
-                const SizedBox(height: 16),
+              // Component tracker cards
+              if (comps.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightGrey,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: TextWidget(text: "No component stages found", fontSize: FontSizes.small, clr: AppColors.grey),
+                  ),
+                )
+              else ...[
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: comps.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (ctx, idx) {
+                  separatorBuilder: (context, idx) => const SizedBox(height: 12),
+                  itemBuilder: (context, idx) {
                     bool allPrev = true;
                     for (int i = 0; i < idx; i++) {
                       if (comps[i].jobStatus != "completed") { allPrev = false; break; }
@@ -153,36 +197,36 @@ class ApiBatchCard extends StatelessWidget {
 
               // ── Assemble button ────────────────────────────────────────
               if (batch.status != "completed")
-                Obx(() {
-                  final allReady = comps.isNotEmpty && comps.every((c) => c.isFullyCompleted);
-                  final ctrl = Get.find<BulkExecutionController>();
-                  final isPrepared = ctrl.preparedBatches.contains(batch.batchId) || batch.status == "prepared";
-                  return Column(
-                    children: [
-                      const SizedBox(height: 14),
-                      const Divider(color: AppColors.borderClr, height: 1),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: allReady ? (isPrepared ? AppColors.green : AppColors.orange) : AppColors.lightGrey,
-                            foregroundColor: allReady ? AppColors.white : AppColors.grey,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: allReady ? Colors.transparent : AppColors.borderClr)),
+                Builder(
+                  builder: (context) {
+                    final allReady = comps.isNotEmpty && comps.every((c) => c.isFullyCompleted);
+                    return Column(
+                      children: [
+                        const SizedBox(height: 14),
+                        const Divider(color: AppColors.borderClr, height: 1),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: allReady ? AppColors.blue : AppColors.lightGrey,
+                              foregroundColor: allReady ? AppColors.white : AppColors.grey,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: allReady ? Colors.transparent : AppColors.borderClr)),
+                            ),
+                            onPressed: allReady ? () {
+                              FocusScope.of(context).unfocus();
+                              Get.dialog(AssembleBatchDialog(batch: batch));
+                            } : null,
+                            icon: const Icon(Icons.precision_manufacturing, size: 18),
+                            label: const Text("Process Assembly", style: TextStyle(fontWeight: FontWeight.bold, fontSize: FontSizes.mediuam)),
                           ),
-                          onPressed: allReady ? () {
-                            FocusScope.of(context).unfocus();
-                            isPrepared ? ctrl.assembleBatch(batch.batchId ?? 0) : ctrl.prepareBatch(batch.batchId ?? 0);
-                          } : null,
-                          icon: Icon(isPrepared ? Icons.check_circle_outline : Icons.precision_manufacturing, size: 18),
-                          label: Text(isPrepared ? "Confirm Final Assembly" : "Start Assemble (Prepare Batch)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: FontSizes.mediuam)),
                         ),
-                      ),
-                    ],
-                  );
-                }),
+                      ],
+                    );
+                  },
+                ),
             ],
           ],
         ),

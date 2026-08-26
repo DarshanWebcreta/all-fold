@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:all_fold/core/theme/app_colors.dart';
 import 'package:all_fold/core/component/text_widget.dart';
@@ -28,6 +29,14 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
   String movementType = "Complete"; // "Complete" or "Transfer"
   int? targetStageId;
   int? sourceStageId;
+
+  String _formatQty(num? qty) {
+    if (qty == null) return "0";
+    if (qty % 1 == 0) {
+      return qty.toInt().toString();
+    }
+    return qty.toString();
+  }
 
   @override
   void initState() {
@@ -92,7 +101,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
             ? (c.totalNeeded ?? 0).toDouble() 
             : (sourceStage?.reserved ?? 0.0));
 
-    qtyController = TextEditingController(text: defaultQty.toString());
+    qtyController = TextEditingController(text: _formatQty(defaultQty));
     remarksController = TextEditingController();
   }
 
@@ -105,7 +114,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
 
   void _submit() {
     final controller = Get.find<BulkExecutionController>();
-    final double? qty = double.tryParse(qtyController.text);
+    final int? qty = int.tryParse(qtyController.text);
     if (qty == null || qty <= 0) {
       FunctionalWidget.showSnackBar(title: "Please enter a valid quantity", success: false);
       return;
@@ -135,7 +144,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
 
     if (qty > maxAvailable) {
       FunctionalWidget.showSnackBar(
-        title: "Quantity cannot exceed available units ($maxAvailable)",
+        title: "Quantity cannot exceed available units (${_formatQty(maxAvailable)})",
         success: false,
       );
       return;
@@ -150,7 +159,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
     controller.moveComponentStage(
       batchId: widget.batchId,
       componentId: widget.component.componentId ?? 0,
-      quantity: qty,
+      quantity: qty.toDouble(),
       toWarehouseId: movementType == "Complete" ? null : targetStageId,
       movementType: movementType,
       remarks: remarks.isEmpty ? "Marking component job as $movementType" : remarks,
@@ -322,7 +331,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                   style: const TextStyle(fontFamily: "Outfit", color: AppColors.black, fontSize: FontSizes.small),
                                   children: [
                                     TextSpan(
-                                      text: "$maxAvailable ",
+                                      text: "${_formatQty(maxAvailable)} ",
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     const TextSpan(
@@ -334,8 +343,8 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                               ),
                               TextWidget(
                                 text: movementType == "Complete"
-                                    ? "To complete: $maxAvailable"
-                                    : "To transfer: $maxAvailable",
+                                    ? "To complete: ${_formatQty(maxAvailable)}"
+                                    : "To transfer: ${_formatQty(maxAvailable)}",
                                 fontSize: FontSizes.tiny,
                                 fontWeight: FontWeights.bold,
                                 clr: AppColors.orange,
@@ -489,10 +498,10 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                                         movementType = val;
                                         if (movementType == "Complete") {
                                           targetStageId = sourceStageId;
-                                          qtyController.text = pendingQty.toString();
+                                          qtyController.text = _formatQty(pendingQty);
                                         } else {
                                           targetStageId = c.nextStageId ?? (sourceStageId != null ? sourceStageId! + 1 : null);
-                                          qtyController.text = completedQty.toString();
+                                          qtyController.text = _formatQty(completedQty);
                                         }
                                       });
                                     }
@@ -521,6 +530,7 @@ class _BatchStageMovementDialogState extends State<BatchStageMovementDialog> {
                         TextField(
                           controller: qtyController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                           decoration: InputDecoration(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             enabledBorder: OutlineInputBorder(

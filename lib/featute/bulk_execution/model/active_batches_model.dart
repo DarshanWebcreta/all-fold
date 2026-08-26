@@ -52,7 +52,9 @@ class ApiBatch {
   int? productId;
   String? productName;
   String? sku;
-  int? plannedQty;
+  num? plannedQty;
+  num? assembledQty;
+  num? remainingQty;
   String? status;
   bool? isActionableForCurrentUser;
   List<ApiComponent>? components;
@@ -65,21 +67,25 @@ class ApiBatch {
     this.productName,
     this.sku,
     this.plannedQty,
+    this.assembledQty,
+    this.remainingQty,
     this.status,
     this.isActionableForCurrentUser,
     this.components,
   });
 
   ApiBatch.fromJson(Map<String, dynamic> json) {
-    batchId = json['batch_id'];
-    batchNo = json['batch_no'];
-    batchName = json['batch_name'];
-    productId = json['product_id'];
-    productName = json['product_name'];
-    sku = json['sku'];
-    plannedQty = json['planned_qty'];
-    status = json['status'];
-    isActionableForCurrentUser = json['is_actionable_for_current_user'];
+    batchId = (json['batch_id'] as num?)?.toInt();
+    batchNo = json['batch_no']?.toString();
+    batchName = json['batch_name']?.toString();
+    productId = (json['product_id'] as num?)?.toInt();
+    productName = json['product_name']?.toString();
+    sku = json['sku']?.toString();
+    plannedQty = json['planned_qty'] as num?;
+    assembledQty = json['assembled_qty'] as num?;
+    remainingQty = json['remaining_qty'] as num?;
+    status = json['status']?.toString();
+    isActionableForCurrentUser = json['is_actionable_for_current_user'] == true || json['is_actionable_for_current_user'] == 1;
     if (json['components'] != null) {
       components = <ApiComponent>[];
       json['components'].forEach((v) {
@@ -97,6 +103,8 @@ class ApiBatch {
     data['product_name'] = productName;
     data['sku'] = sku;
     data['planned_qty'] = plannedQty;
+    data['assembled_qty'] = assembledQty;
+    data['remaining_qty'] = remainingQty;
     data['status'] = status;
     data['is_actionable_for_current_user'] = isActionableForCurrentUser;
     if (components != null) {
@@ -109,8 +117,8 @@ class ApiBatch {
 class ApiComponent {
   int? componentId;
   String? componentName;
-  int? qtyPerPc;
-  int? totalNeeded;
+  num? qtyPerPc;
+  num? totalNeeded;
   int? currentStageId;
   String? currentStageLabel;
   int? nextStageId;
@@ -134,16 +142,16 @@ class ApiComponent {
   });
 
   ApiComponent.fromJson(Map<String, dynamic> json) {
-    componentId = json['component_id'];
-    componentName = json['component_name'];
-    qtyPerPc = json['qty_per_pc'];
-    totalNeeded = json['total_needed'];
-    currentStageId = json['current_stage_id'];
-    currentStageLabel = json['current_stage_label'];
-    nextStageId = json['next_stage_id'];
-    nextStageLabel = json['next_stage_label'];
-    isActionableForCurrentUser = json['is_actionable_for_current_user'];
-    jobStatus = json['job_status'];
+    componentId = (json['component_id'] as num?)?.toInt();
+    componentName = json['component_name']?.toString();
+    qtyPerPc = json['qty_per_pc'] as num?;
+    totalNeeded = json['total_needed'] as num?;
+    currentStageId = (json['current_stage_id'] as num?)?.toInt();
+    currentStageLabel = json['current_stage_label']?.toString();
+    nextStageId = (json['next_stage_id'] as num?)?.toInt();
+    nextStageLabel = json['next_stage_label']?.toString();
+    isActionableForCurrentUser = json['is_actionable_for_current_user'] == true || json['is_actionable_for_current_user'] == 1;
+    jobStatus = json['job_status']?.toString();
     if (json['pipeline_stages'] != null) {
       pipelineStages = <PipelineStage>[];
       json['pipeline_stages'].forEach((v) {
@@ -173,20 +181,18 @@ class ApiComponent {
   bool get isFullyCompleted {
     final isJobCompleted = jobStatus == "completed";
     final stagesList = pipelineStages ?? [];
-    final lastStageId = stagesList.isNotEmpty
-        ? stagesList.map((s) => s.stageId ?? 0).reduce((a, b) => a > b ? a : b)
-        : 0;
+
+    // If there is still a next stage to transfer to, the component is not fully completed
+    if (nextStageId != null) {
+      return false;
+    }
 
     final currentStageIndex = stagesList.indexWhere((s) => s.stageId == currentStageId);
     final currentStagePending = currentStageIndex != -1 
         ? (stagesList[currentStageIndex].pending ?? 0.0) 
         : 0.0;
 
-    if (nextStageId == null && nextStageLabel == null) {
-      return isJobCompleted && currentStagePending <= 0;
-    } else {
-      return isJobCompleted && (currentStageId ?? 0) == lastStageId;
-    }
+    return isJobCompleted && currentStagePending <= 0;
   }
 }
 
@@ -201,8 +207,8 @@ class PipelineStage {
   PipelineStage({this.stageId, this.stageName, this.stock, this.reserved, this.completed, this.pending});
 
   PipelineStage.fromJson(Map<String, dynamic> json) {
-    stageId = json['stage_id'];
-    stageName = json['stage_name'];
+    stageId = (json['stage_id'] as num?)?.toInt();
+    stageName = json['stage_name']?.toString();
     stock = (json['stock'] as num?)?.toDouble();
     reserved = (json['reserved'] as num?)?.toDouble();
     completed = (json['completed'] as num?)?.toDouble();

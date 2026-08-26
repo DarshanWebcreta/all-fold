@@ -67,13 +67,13 @@ class UnplannedProduct {
   });
 
   UnplannedProduct.fromJson(Map<String, dynamic> json) {
-    productId = json['product_id'];
-    productName = json['product_name'];
-    sku = json['sku'];
-    totalOrdered = json['total_ordered'];
-    totalReserved = json['total_reserved'];
-    pendingQty = json['pending_qty'];
-    readyStock = json['ready_stock'];
+    productId = (json['product_id'] as num?)?.toInt();
+    productName = json['product_name']?.toString();
+    sku = json['sku']?.toString();
+    totalOrdered = (json['total_ordered'] as num?)?.toInt();
+    totalReserved = (json['total_reserved'] as num?)?.toInt();
+    pendingQty = (json['pending_qty'] as num?)?.toInt();
+    readyStock = (json['ready_stock'] as num?)?.toInt();
     if (json['components'] != null) {
       components = <UnplannedComponent>[];
       json['components'].forEach((v) {
@@ -119,18 +119,18 @@ class UnplannedComponent {
   });
 
   UnplannedComponent.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
-    name = json['name'];
-    qtyPerPc = json['qty_per_pc'];
-    totalNeeded = json['total_needed'];
+    id = (json['id'] as num?)?.toInt();
+    name = json['name']?.toString();
+    qtyPerPc = (json['qty_per_pc'] as num?)?.toInt();
+    totalNeeded = (json['total_needed'] as num?)?.toInt();
     if (json['stage_stock'] != null) {
       stageStock = {};
       json['stage_stock'].forEach((k, v) {
-        stageStock![k] = v is int ? v : int.tryParse(v.toString()) ?? 0;
+        stageStock![k] = (v as num?)?.toInt() ?? int.tryParse(v.toString()) ?? 0;
       });
     }
-    rawStockKg = json['raw_stock_kg'];
-    rawName = json['raw_name'];
+    rawStockKg = (json['raw_stock_kg'] as num?);
+    rawName = json['raw_name']?.toString();
   }
 
   Map<String, dynamic> toJson() {

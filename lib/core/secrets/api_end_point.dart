@@ -24,7 +24,7 @@ class ApiPath {
 
   // Bulk Execution
   static const String createBatch = "batches/create";
-  static const String generateJobs = "batches/create-job";
+  static const String generateJobs = "/api/v1/execution/batches/create-job";
   static const String moveStage = "batches/move-stage";
   static const String completeBatch = "batches/complete";
   static const String unplannedDemand = "/api/v1/execution/unplanned";
@@ -34,34 +34,15 @@ class ApiPath {
   static const String assembleBatchApi = "/api/v1/execution/process";
   static const String prepareBatchApi = "/api/v1/execution/prepare";
   static const String getBatchesHistory = "/api/v1/execution/batches/history";
+  static const String assembleBatchPreview = "/api/v1/execution/batches/{batch_id}/assemble-preview";
+
+  // Sales Orders
+  static const String salesOrderList = "/api/v1/sales-orders";
+  static const String salesOrderDetail = "/api/v1/sales-orders/{id}";
+  static const String salesOrderDispatchPreview = "/api/v1/sales-orders/{id}/dispatch-preview";
+  static const String salesOrderDispatch = "/api/v1/sales-orders/{id}/dispatch";
+  static const String salesOrderAddShippingAddress = "/api/v1/sales-orders/{id}/dispatch-shipping-address";
 
 
-  // Picklists
-  static const String pickList = "picklists/get";
-  static const String forceAction = "picklists/force-action";
-  static const String assignPickList = "picklists/assignee";
-  static const String pickListUSer = "picklists/users";
-  static const String pickListView = "picklists/view";
-  static const String picklistProducts = "picklists/products";
-  static const String pickHistory = "picklists/log-history";
-  static const String closePick = "picklists/close";
-  static const String addPickNote = "picklists/notes";
-  static const String acceptAdjustment = "picklists/accept-adjustment";
 
-  // Pickup
-  static const String pickAll = "pickup/all";
-  static const String pickByScan = "pickup/scan-barcode";
-  static const String pickItem = "pickup/product";
-
-  // Stock Management
-  static const String stockMove = "stocks/move";
-  static const String stockChange = "stocks/change";
-
-  // Locations
-  static const String linkLocation = "location/link";
-  static const String unLinkLocation = "location/unlink";
-
-  // Miscellaneous
-  static const String brandSupplier = "filter-list";
-  static const String dashboard = "dashboard";
 }

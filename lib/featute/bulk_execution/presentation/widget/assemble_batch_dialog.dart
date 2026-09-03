@@ -46,6 +46,12 @@ class _AssembleBatchDialogState extends State<AssembleBatchDialog> {
   void initState() {
     super.initState();
     qtyController = TextEditingController();
+    // Fetch material preview when dialog opens
+    final batchId = widget.batch.batchId;
+    if (batchId != null) {
+      final controller = Get.find<BulkExecutionController>();
+      controller.fetchAssemblePreview(batchId);
+    }
   }
 
   @override
@@ -238,6 +244,146 @@ class _AssembleBatchDialogState extends State<AssembleBatchDialog> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // ── Material Preview (Stage 3 Used Items) ─────────────────────
+              Obx(() {
+                final controller = Get.find<BulkExecutionController>();
+                if (controller.isLoadingAssemblePreview.value) {
+                  return Column(
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.science_outlined, size: 14, color: AppColors.grey),
+                          SizedBox(width: 6),
+                          TextWidget(
+                            text: "Loading material requirements…",
+                            fontSize: FontSizes.small,
+                            clr: AppColors.grey,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const LinearProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.orange),
+                        backgroundColor: AppColors.borderClr,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }
+
+                final preview = controller.assemblePreviewData.value;
+                if (preview == null) return const SizedBox();
+
+                final rawItems = preview['stage3_used_items'] as List?;
+                if (rawItems == null || rawItems.isEmpty) return const SizedBox();
+
+                final totals = preview['total_required_materials'] as Map?;
+                final hasShortage = (totals?['total_shortage_items'] as num? ?? 0) > 0;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          hasShortage ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                          size: 16,
+                          color: hasShortage ? AppColors.red : Colors.green,
+                        ),
+                        const SizedBox(width: 6),
+                        TextWidget(
+                          text: hasShortage ? "Material Shortage Detected" : "Materials Ready",
+                          fontSize: FontSizes.small,
+                          fontWeight: FontWeights.bold,
+                          clr: hasShortage ? AppColors.red : Colors.green,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: hasShortage ? AppColors.lightRed : AppColors.borderClr),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: rawItems.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final raw = entry.value as Map;
+                          final name = raw['display_name'] ?? raw['name'] ?? 'Material';
+                          final available = raw['available_total'] as num? ?? 0;
+                          final required = raw['required_total'] as num? ?? 0;
+                          final shortage = raw['shortage_total'] as num? ?? 0;
+                          final unit = raw['unit'] ?? '';
+                          final itemHasShortage = shortage > 0;
+
+                          String fmt(num v) {
+                            if (v % 1 == 0) return v.toInt().toString();
+                            return v.toStringAsFixed(2);
+                          }
+
+                          return Column(
+                            children: [
+                              if (i > 0) const Divider(color: AppColors.borderClr, height: 1),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                color: itemHasShortage ? AppColors.lightRed.withValues(alpha: 0.4) : null,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          TextWidget(
+                                            text: name,
+                                            fontSize: FontSizes.xsmall,
+                                            fontWeight: FontWeights.semiBold,
+                                            clr: AppColors.black,
+                                          ),
+                                          if (unit.isNotEmpty)
+                                            TextWidget(text: unit, fontSize: 9, clr: AppColors.grey),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          TextWidget(
+                                            text: 'Need: ${fmt(required)}',
+                                            fontSize: 9,
+                                            clr: AppColors.grey,
+                                          ),
+                                          TextWidget(
+                                            text: 'Avail: ${fmt(available)}',
+                                            fontSize: 9,
+                                            fontWeight: FontWeights.semiBold,
+                                            clr: itemHasShortage ? AppColors.red : Colors.green,
+                                          ),
+                                          if (itemHasShortage)
+                                            TextWidget(
+                                              text: 'Short: ${fmt(shortage)}',
+                                              fontSize: 9,
+                                              fontWeight: FontWeights.bold,
+                                              clr: AppColors.red,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }),
 
               // Quantity Input
               const TextWidget(

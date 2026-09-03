@@ -9,6 +9,7 @@ import 'package:all_fold/featute/auth/controller/auth_controller.dart';
 import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/batches_tab.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/widget/history_tab.dart';
+import 'package:all_fold/featute/sales_order/presentation/sales_order_list_screen.dart';
 import 'package:all_fold/core/routes/route_name.dart';
 
 class BulkExecutionDashboard extends StatelessWidget {
@@ -20,9 +21,29 @@ class BulkExecutionDashboard extends StatelessWidget {
     Get.put(BulkExecutionController());
     final authController = Get.find<AuthController>();
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
+    return Obx(() {
+      final user = authController.rxUser.value;
+      final bool canViewBatches = user?.canViewBatches ?? true;
+      final bool canViewSalesOrders = user?.canViewSalesOrders ?? false;
+
+      final List<Tab> tabs = [
+        if (canViewBatches) const Tab(text: "Batched"),
+        if (canViewSalesOrders) const Tab(text: "Sales Order"),
+        if (canViewBatches) const Tab(text: "History"),
+      ];
+
+      final List<Widget> tabViews = [
+        if (canViewBatches) const BatchesTab(isHistory: false),
+        if (canViewSalesOrders) const SalesOrderListScreen(showAppBar: false),
+        if (canViewBatches) const HistoryTab(),
+      ];
+
+      final tabKey = tabs.map((t) => t.text).join('_');
+
+      return DefaultTabController(
+        key: ValueKey('dashboard_tabs_$tabKey'),
+        length: tabs.length,
+        child: Scaffold(
         backgroundColor: AppColors.bgColor,
         appBar: AppBar(
           backgroundColor: AppColors.white,
@@ -40,10 +61,8 @@ class BulkExecutionDashboard extends StatelessWidget {
             ],
           ),
           actions: [
-            Obx(() {
-              final user = authController.rxUser.value;
-              if (user == null) return const SizedBox();
-              return Row(
+            if (user != null)
+              Row(
                 spacing: 8,
                 children: [
                   GestureDetector(
@@ -133,9 +152,8 @@ class BulkExecutionDashboard extends StatelessWidget {
                       );
                     },
                   ),
-                ],
-              );
-            }),
+                  ],
+                ),
           ],
         ),
         body: Padding(
@@ -143,29 +161,23 @@ class BulkExecutionDashboard extends StatelessWidget {
           child: Column(
             spacing: 12,
             children: [
-              const TabBar(
+              TabBar(
                 labelColor: AppColors.orange,
                 unselectedLabelColor: AppColors.grey,
                 indicatorColor: AppColors.orange,
                 indicatorSize: TabBarIndicatorSize.tab,
-                tabs: [
-                  Tab(text: "Batches"),
-                  Tab(text: "History"),
-                ],
+                tabs: tabs,
               ),
-              const Expanded(
+              Expanded(
                 child: TabBarView(
-                  children: [
-                    BatchesTab(isHistory: false),
-                    HistoryTab(),
-                  ],
+                  children: tabViews,
                 ),
               ),
             ],
           ),
         ),
-
       ),
     );
+  });
   }
 }

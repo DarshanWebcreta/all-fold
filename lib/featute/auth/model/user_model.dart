@@ -70,8 +70,26 @@ class UserModel {
     warehouseId = json['warehouse_id'];
     warehouseName = json['warehouse_name'];
     if (json['roles'] != null) {
-      roles = List<String>.from(json['roles']);
+      if (json['roles'] is List) {
+        roles = (json['roles'] as List).map((e) => e.toString()).toList();
+      } else if (json['roles'] is String) {
+        roles = [json['roles'].toString()];
+      }
     }
+  }
+
+  bool get isDispatchUser {
+    return roles?.any((r) => r.trim().toLowerCase() == 'dispatch') ?? false;
+  }
+
+  bool get canViewBatches {
+    if (isAdmin == true) return true;
+    return !isDispatchUser;
+  }
+
+  bool get canViewSalesOrders {
+    if (isAdmin == true) return true;
+    return isDispatchUser;
   }
 
   Map<String, dynamic> toJson() {

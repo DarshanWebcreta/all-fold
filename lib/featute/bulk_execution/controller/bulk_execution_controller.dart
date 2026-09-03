@@ -47,6 +47,11 @@ class BulkExecutionController extends GetxController {
   final lastOperatedBatchId = Rxn<int>();
   final lastOperatedComponentId = Rxn<int>();
 
+  // Assemble Preview State
+  final assemblePreviewData = Rxn<Map<String, dynamic>>();
+  final isLoadingAssemblePreview = false.obs;
+  final assemblePreviewError = "".obs;
+
   // Form State
   final selectedProduct = Rxn<ProductData>();
   final targetQuantityController = TextEditingController();
@@ -1170,5 +1175,42 @@ class BulkExecutionController extends GetxController {
     movementsCurrentPage.value = 1;
     movementsLastPage.value = 1;
     movementsTotal.value = 2;
+  }
+
+  // ─── Assemble Preview ────────────────────────────────────────────────────────
+
+  Future<void> fetchAssemblePreview(int batchId) async {
+    isLoadingAssemblePreview.value = true;
+    assemblePreviewError.value = "";
+    assemblePreviewData.value = null;
+
+    try {
+      final apiService = getIt<ApiService>();
+      final response = await apiService.getAssemblePreview(batchId: batchId);
+      if (response is Map) {
+        final bool isSuccess = response['success'] == true;
+        if (isSuccess && response['data'] != null) {
+          assemblePreviewData.value = Map<String, dynamic>.from(response['data']);
+        } else {
+          assemblePreviewError.value = response['message'] ?? "Failed to load assemble preview";
+        }
+      } else {
+        assemblePreviewError.value = "Unexpected response format";
+      }
+    } catch (e) {
+      debugPrint("API Error fetching assemble preview: $e");
+      if (e is DioException && e.response != null) {
+        final res = e.response!;
+        if (res.data is Map && res.data['message'] != null) {
+          assemblePreviewError.value = res.data['message'];
+        } else {
+          assemblePreviewError.value = e.message ?? "Network error loading preview";
+        }
+      } else {
+        assemblePreviewError.value = "Unable to load assembly material preview.";
+      }
+    } finally {
+      isLoadingAssemblePreview.value = false;
+    }
   }
 }

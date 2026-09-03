@@ -93,8 +93,44 @@ abstract class ApiService {
     @Query("page") int? page,
     @Query("per_page") int? perPage,
   });
+
+  // ─── Assemble Preview ──────────────────────────────────────────────────────
+
+  @GET("/api/v1/execution/batches/{batch_id}/assemble-preview")
+  Future<dynamic> getAssemblePreview({
+    @Path("batch_id") required int batchId,
+  });
+
+  // ─── Sales Orders ──────────────────────────────────────────────────────────
+
+  @GET(ApiPath.salesOrderList)
+  Future<dynamic> getSalesOrders({
+    @Query("order_status") String? orderStatus,
+    @Query("branch_id") int? branchId,
+    @Query("search") String? search,
+    @Query("per_page") int? perPage,
+    @Query("page") int? page,
+  });
+
+  @GET("/api/v1/sales-orders/{id}")
+  Future<dynamic> getSalesOrderDetail({
+    @Path("id") required int id,
+  });
+
+  @GET("/api/v1/sales-orders/{id}/dispatch-preview")
+  Future<dynamic> getSalesOrderDispatchPreview({
+    @Path("id") required int id,
+  });
+
+  @POST("/api/v1/sales-orders/{id}/dispatch-shipping-address")
+  Future<dynamic> addSalesOrderShippingAddress({
+    @Path("id") required int id,
+    @Body() required Map<String, dynamic> body,
+  });
+
+  @POST("/api/v1/sales-orders/{id}/dispatch")
+  Future<dynamic> executeSalesOrderDispatch({
+    @Path("id") required int id,
+    @Body() required Map<String, dynamic> body,
+  });
 }
-
-
-
-

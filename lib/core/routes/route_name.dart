@@ -16,4 +16,9 @@ class RoutesNames {
   static const createBatch = '/create-batch';
   static const batchDetail = '/batch-detail';
   static const profile = '/profile';
+
+  // Sales Orders
+  static const salesOrderList = '/sales-orders';
+  static const salesOrderDetail = '/sales-order-detail';
+  static const dispatchPreview = '/dispatch-preview';
 }

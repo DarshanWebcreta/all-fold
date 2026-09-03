@@ -4,8 +4,10 @@ import 'package:all_fold/featute/auth/presentation/login_screen.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/bulk_execution_dashboard.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/create_batch_screen.dart';
 import 'package:all_fold/featute/bulk_execution/presentation/batch_detail_screen.dart';
-
 import 'package:all_fold/featute/auth/presentation/profile_screen.dart';
+import 'package:all_fold/featute/sales_order/presentation/sales_order_list_screen.dart';
+import 'package:all_fold/featute/sales_order/presentation/sales_order_detail_screen.dart';
+import 'package:all_fold/featute/sales_order/presentation/dispatch_preview_screen.dart';
 
 abstract class AppPages {
   static final pages = [
@@ -28,6 +30,20 @@ abstract class AppPages {
     GetPage(
       name: RoutesNames.profile,
       page: () => const ProfileScreen(),
+    ),
+
+    // Sales Orders
+    GetPage(
+      name: RoutesNames.salesOrderList,
+      page: () => const SalesOrderListScreen(),
+    ),
+    GetPage(
+      name: RoutesNames.salesOrderDetail,
+      page: () => const SalesOrderDetailScreen(),
+    ),
+    GetPage(
+      name: RoutesNames.dispatchPreview,
+      page: () => const DispatchPreviewScreen(),
     ),
   ];
 }

@@ -24,7 +24,7 @@ class ApiPath {
 
   // Bulk Execution
   static const String createBatch = "batches/create";
-  static const String generateJobs = "batches/generate-jobs";
+  static const String generateJobs = "batches/create-job";
   static const String moveStage = "batches/move-stage";
   static const String completeBatch = "batches/complete";
   static const String unplannedDemand = "/api/v1/execution/unplanned";

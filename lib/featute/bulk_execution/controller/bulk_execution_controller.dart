@@ -687,6 +687,49 @@ class BulkExecutionController extends GetxController {
     ]);
   }
 
+  /// Called when a PLANT-1 user taps "Create Job" on a component whose
+  /// [jobStatus] is "not_started". Hits the `batches/create-job` endpoint
+  /// and re-fetches active batches on success.
+  Future<void> createJobForComponent({
+    required int batchId,
+    required int componentId,
+  }) async {
+    FunctionalWidget.loaderHideShow(loaderShow: true);
+    try {
+      final apiService = getIt<ApiService>();
+      final response = await apiService.generateJobs({
+        "batch_id": batchId,
+        "component_id": componentId,
+      });
+
+      if (response is Map) {
+        final bool isSuccess = response['success'] == true;
+        final String msg = response['message'] ?? (isSuccess ? "Job created successfully." : "Failed to create job.");
+        FunctionalWidget.showSnackBar(title: msg, success: isSuccess);
+        if (isSuccess) {
+          await fetchActiveBatches();
+        }
+      } else {
+        FunctionalWidget.showSnackBar(title: "Job created successfully.", success: true);
+        await fetchActiveBatches();
+      }
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        final res = e.response!;
+        String errorMsg = "Failed to create job.";
+        if (res.data is Map && res.data['message'] != null) {
+          errorMsg = res.data['message'];
+        }
+        FunctionalWidget.showSnackBar(title: errorMsg, success: false);
+      } else {
+        debugPrint("createJobForComponent error: $e");
+        FunctionalWidget.showSnackBar(title: "Network error. Could not create job.", success: false);
+      }
+    } finally {
+      FunctionalWidget.loaderHideShow(loaderShow: false);
+    }
+  }
+
   Future<void> moveComponentStage({
     required int batchId,
     required int componentId,

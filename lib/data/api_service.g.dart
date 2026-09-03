@@ -130,7 +130,7 @@ class _ApiService implements ApiService {
       Options(method: 'POST', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
-            'batches/generate-jobs',
+            'batches/create-job',
             queryParameters: queryParameters,
             data: _data,
           )

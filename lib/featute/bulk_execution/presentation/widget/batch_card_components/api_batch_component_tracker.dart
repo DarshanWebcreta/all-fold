@@ -126,6 +126,7 @@ class ApiBatchComponentTracker extends StatelessWidget {
             component: c,
             isFullyCompleted: isFullyCompleted,
             onMoveTap: () => _openMovementDialog(context, c),
+            batchId: batch.batchId ?? 0,
           ),
         ],
       ),

@@ -5,18 +5,33 @@ import 'package:all_fold/core/component/text_widget.dart';
 import 'package:all_fold/core/utils/font_size.dart';
 import 'package:all_fold/core/utils/font_weight.dart';
 import 'package:all_fold/featute/bulk_execution/model/active_batches_model.dart';
+import 'package:all_fold/featute/bulk_execution/controller/bulk_execution_controller.dart';
+import 'package:all_fold/featute/auth/controller/auth_controller.dart';
 
 class ApiBatchComponentActionBanner extends StatelessWidget {
   final ApiComponent component;
   final bool isFullyCompleted;
   final VoidCallback onMoveTap;
+  final int batchId;
 
   const ApiBatchComponentActionBanner({
     super.key,
     required this.component,
     required this.isFullyCompleted,
     required this.onMoveTap,
+    required this.batchId,
   });
+
+  /// Returns true if the currently logged-in user has the "PLANT-1" role.
+  bool get _isPlant1User {
+    try {
+      final auth = Get.find<AuthController>();
+      final roles = auth.rxUser.value?.roles ?? [];
+      return roles.any((r) => r.trim().toUpperCase() == 'PLANT-1');
+    } catch (_) {
+      return false;
+    }
+  }
 
   void _showNotStartedDialog() {
     Get.dialog(
@@ -61,10 +76,114 @@ class ApiBatchComponentActionBanner extends StatelessWidget {
     );
   }
 
+  void _onCreateJobTap() {
+    final componentId = component.componentId;
+    if (componentId == null) {
+      return;
+    }
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: AppColors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_task, color: AppColors.themeColor, size: 48),
+              const SizedBox(height: 16),
+              const TextWidget(
+                text: "Create Job",
+                fontSize: FontSizes.large,
+                fontWeight: FontWeights.bold,
+                clr: AppColors.black,
+              ),
+              const SizedBox(height: 10),
+              TextWidget(
+                text: "Create a job for \"${component.componentName ?? 'this component'}\"?",
+                fontSize: FontSizes.mediuam,
+                clr: AppColors.grey,
+                textAlign: TextAlign.center,
+                maxLine: 3,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.borderClr),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Get.back(),
+                      child: const TextWidget(text: "Cancel", fontWeight: FontWeights.medium, clr: AppColors.grey),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.themeColor,
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Get.back();
+                        final controller = Get.find<BulkExecutionController>();
+                        controller.createJobForComponent(
+                          batchId: batchId,
+                          componentId: componentId,
+                        );
+                      },
+                      child: const TextWidget(text: "Create", fontWeight: FontWeights.bold, clr: AppColors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (component.isActionableForCurrentUser == true && !isFullyCompleted) {
       if (component.jobStatus == "not_started") {
+        // PLANT-1 supervisors can create the job directly
+        if (_isPlant1User) {
+          return GestureDetector(
+            onTap: _onCreateJobTap,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.themeColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_task, color: AppColors.white, size: 18),
+                  SizedBox(width: 6),
+                  TextWidget(
+                    text: "Create Job",
+                    fontSize: FontSizes.mediuam,
+                    fontWeight: FontWeights.bold,
+                    clr: AppColors.white,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Other users: show info-only banner
         return GestureDetector(
           onTap: _showNotStartedDialog,
           child: Container(
